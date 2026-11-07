@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>SCL WMS</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --bg:#eef1f4; --surface:#fff; --surface-2:#f6f8fa; --line:#d6dce3; --ink:#16202b; --muted:#5b6876; --accent:#1d5ea8; --accent-ink:#fff;
+  --s0:#6b7682; --s1:#1d5ea8; --s2:#a86400; --s3:#6b46b5; --s4:#1d7f4e; --danger:#b3261e;
+  --t0:#eceff2; --t1:#e3edf9; --t2:#fbf0de; --t3:#efe9f9; --t4:#e2f3ea; --tdanger:#fbe7e5;
+  --f-body:"IBM Plex Sans Thai",system-ui,"Leelawadee UI",Tahoma,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+.wrap{padding-left:16px;padding-right:16px;max-width:1080px;margin:0 auto}
+header{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-block:8px}
+.brand{display:flex;align-items:baseline;gap:8px;margin-right:auto}
+.brand b{font-family:var(--f-mono);letter-spacing:.06em}
+.brand span{color:var(--muted);font-size:13px}
+nav{display:flex;gap:4px}
+nav button{font:inherit;font-weight:600;border:0;background:none;color:var(--muted);padding:8px 12px;border-radius:6px;cursor:pointer}
+nav button[aria-selected="true"]{background:var(--t1);color:var(--accent)}
+main{padding-block:16px 48px}
+h2{font-size:18px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 12px;font-size:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+.stack{display:grid;gap:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+label.f.wide{grid-column:1/-1}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:9px 10px;width:100%;min-width:0}
+textarea{min-height:56px;resize:vertical}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn{font:inherit;font-weight:600;border-radius:6px;padding:9px 14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.big{font-size:18px;padding:16px}
+.btn:disabled{opacity:.5}
+.btn svg{width:24px;height:24px}
+.camrow{display:grid;grid-template-columns:1fr auto;gap:8px}
+.modes{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.modes button{flex:none;font:inherit;font-size:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 12px;border-radius:999px;cursor:pointer}
+.modes button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.code{font-family:var(--f-mono);font-weight:600;letter-spacing:.03em}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.s0{color:var(--s0);background:var(--t0)}.s1{color:var(--s1);background:var(--t1)}.s2{color:var(--s2);background:var(--t2)}.s3{color:var(--s3);background:var(--t3)}.s4{color:var(--s4);background:var(--t4)}
+.cam{position:relative;background:#000;border-radius:8px;overflow:hidden;aspect-ratio:4/3;max-width:100%}
+.cam video{width:100%;height:100%;object-fit:cover;display:block}
+.cam .frame{position:absolute;inset:18% 22%;border:3px solid rgba(255,255,255,.85);border-radius:12px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.cam .hint{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#fff;font-size:14px;text-shadow:0 1px 2px #000}
+.cam .close{position:absolute;top:8px;right:8px}
+.lastres{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px;border-radius:8px;font-size:16px}
+.lastres.ok{background:var(--t4)}.lastres.err{background:var(--tdanger);color:var(--danger)}
+.notice{padding:10px 12px;border-radius:6px;background:var(--t2);font-size:14px}
+.notice.err{background:var(--tdanger);color:var(--danger)}.notice.ok{background:var(--t4)}
+.card-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.card-head .code{font-size:20px}
+dl.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;margin:14px 0 0}
+dl.kv div{min-width:0}dl.kv dt{font-size:12px;color:var(--muted)}dl.kv dd{margin:0;font-weight:500;overflow-wrap:anywhere}
+.track{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:16px}
+.step{padding:8px 8px 6px;border-top:4px solid var(--line);font-size:12px;color:var(--muted);min-width:0}
+.step b{display:block;color:var(--ink);font-size:13px}
+.step.done{border-top-color:var(--accent)}.step.now{border-top-color:var(--s2)}
+.next{margin-top:16px;padding:14px;border-radius:8px;background:var(--surface-2);border:1px dashed var(--line)}
+.next h3{margin:0 0 10px;font-size:15px}
+details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:14px;margin-top:14px}
+.hist{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.hist b{color:var(--ink);font-weight:500}
+.log{list-style:none;margin:0;padding:0;display:grid;gap:6px;max-height:340px;overflow:auto}
+.log li{display:flex;gap:10px;align-items:center;padding:6px 10px;border-radius:6px;background:var(--surface-2);font-size:14px;flex-wrap:wrap}
+.log li.err{background:var(--tdanger);color:var(--danger)}
+.counts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.counts button{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer;display:grid;text-align:left;min-width:100px}
+.counts button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.counts small{color:var(--muted);font-size:12px}.counts strong{font-size:20px;font-variant-numeric:tabular-nums}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--surface-2)}
+tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
+.labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.lbl{border:1px dashed var(--muted);border-radius:6px;padding:10px;display:grid;grid-template-columns:96px 1fr;gap:10px;background:#fff;color:#111;min-width:0}
+.lbl svg{width:96px;height:96px}.lbl .t{font-size:12px;line-height:1.35;min-width:0;overflow-wrap:anywhere}
+.empty{color:var(--muted);text-align:center;padding:28px 8px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
+.hidden-file{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.gate{position:fixed;inset:0;background:var(--bg);z-index:40;display:grid;place-items:center;padding:16px}
+.gate .panel{width:100%;max-width:380px}
+.who{font-size:13px;color:var(--muted)}
+.who button{font:inherit;font-size:13px;background:none;border:0;color:var(--accent);cursor:pointer;padding:0 0 0 6px}
+[hidden]{display:none!important}
+@media (max-width:560px){.brand span{display:none}nav{width:100%}nav button{flex:1;padding:8px 4px}
+  .track{grid-template-columns:1fr}.step{border-top:none;border-left:4px solid var(--line);padding:4px 10px}.step.done{border-left-color:var(--accent)}.step.now{border-left-color:var(--s2)}}
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <form class="panel stack" id="gate-form" autocomplete="off">
+    <div><h2>SCL WMS</h2><p class="sub" style="margin:0">ระบบติดตามพาเลท/กล่องสินค้า สหโชค โลจิสติกส์</p></div>
+    <label class="f">ชื่อผู้ใช้งาน<input id="g-name" required placeholder="เช่น สมชาย คลังลำปาง"></label>
+    <label class="f">PIN<input id="g-pin" type="password" inputmode="numeric" required></label>
+    <button class="btn primary big" type="submit" id="g-btn">เข้าใช้งาน</button>
+    <div id="g-msg" hidden></div>
+  </form>
+</div>
+
+<header>
+  <div class="wrap bar">
+    <div class="brand"><b>SCL WMS</b><span>ติดตามพาเลท / กล่องสินค้าด้วย QR</span></div>
+    <div class="who" id="who"></div>
+    <nav>
+      <button data-tab="scan" aria-selected="true">สแกน</button>
+      <button data-tab="labels" aria-selected="false">สร้างป้าย QR</button>
+      <button data-tab="list" aria-selected="false">รายการทั้งหมด</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- SCAN -->
+  <section id="view-scan" class="stack">
+    <div class="panel stack">
+      <div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px">1. เลือกงาน</div>
+        <div class="modes" id="modes">
+          <button data-mode="view" aria-pressed="true">ดูข้อมูล</button>
+          <button data-mode="1" aria-pressed="false">รับเข้าคลัง</button>
+          <button data-mode="2" aria-pressed="false">ขึ้นรถ</button>
+          <button data-mode="3" aria-pressed="false">ถึงปลายทาง</button>
+          <button data-mode="4" aria-pressed="false">ส่งสำเร็จ</button>
+        </div>
+      </div>
+      <div id="batch-fields" class="grid" hidden></div>
+      <div style="font-size:13px;color:var(--muted)">2. สแกนป้าย</div>
+      <div class="camrow">
+        <button class="btn primary big" type="button" id="cam-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/><rect x="7" y="7" width="4" height="4"/><rect x="13" y="13" width="4" height="4"/></svg>เปิดกล้องสแกน</button>
+        <button class="btn big" type="button" id="photo-btn">ถ่ายรูป</button>
+        <input type="file" id="photo-input" class="hidden-file" accept="image/*" capture="environment" tabindex="-1">
+      </div>
+      <div class="cam" id="cam" hidden>
+        <video id="video" playsinline muted></video>
+        <div class="frame"></div>
+        <div class="hint" id="cam-hint">เล็ง QR ให้อยู่ในกรอบ</div>
+        <button class="btn close" type="button" id="cam-close">ปิดกล้อง</button>
+      </div>
+      <div id="last-result" hidden></div>
+      <div id="scan-msg" hidden></div>
+      <form id="scan-form" class="row" autocomplete="off">
+        <input id="scan-input" style="flex:1 1 200px;font-family:var(--f-mono);text-transform:uppercase" placeholder="หรือพิมพ์ / ยิงรหัส เช่น SCL261107-7KQ2" aria-label="รหัสป้าย">
+        <button class="btn" type="submit">ตกลง</button>
+      </form>
+    </div>
+    <div id="item-view"></div>
+    <div id="batch-log-wrap" class="panel" hidden>
+      <div class="card-head"><h2 style="margin:0">สแกนแล้ววันนี้ (เครื่องนี้)</h2><span id="batch-count" class="sub" style="margin:0"></span></div>
+      <ul class="log" id="batch-log" style="margin-top:10px"></ul>
+    </div>
+  </section>
+
+  <!-- LABELS -->
+  <section id="view-labels" class="stack" hidden>
+    <div><h2>สร้างป้าย QR</h2><p class="sub">ป้าย 1 ใบ = พาเลท/กล่อง 1 ชิ้น สร้างพร้อมข้อมูลบิล หรือสร้างป้ายเปล่าแล้วกรอกตอนสแกนรับเข้า</p></div>
+    <form id="label-form" class="panel stack" autocomplete="off">
+      <div class="modes" id="label-kind">
+        <button type="button" data-kind="full" aria-pressed="true">ป้ายพร้อมข้อมูลบิล</button>
+        <button type="button" data-kind="blank" aria-pressed="false">ป้ายเปล่า</button>
+      </div>
+      <div class="grid" id="label-detail">
+        <label class="f">เลขที่บิล<input id="l-bill" required></label>
+        <label class="f">ร้านค้าปลายทาง<input id="l-store" required></label>
+        <label class="f">สาขา / จุดกระจาย<input id="l-branch"></label>
+        <label class="f">วันนัดส่ง<input id="l-plan" type="date"></label>
+        <label class="f wide">สินค้า<input id="l-desc"></label>
+        <label class="f">จำนวนต่อป้าย<input id="l-qty" type="number" min="0" step="any" value="1"></label>
+        <label class="f">หน่วย<select id="l-unit"><option>กล่อง</option><option>พาเลท</option><option>ลัง</option><option>ชิ้น</option><option>แพ็ค</option></select></label>
+        <label class="f">สถานะเริ่มต้น<select id="l-recv"><option value="0">รอรับเข้า</option><option value="1">รับเข้าคลังแล้ววันนี้</option></select></label>
+      </div>
+      <div class="row">
+        <label class="f" style="width:150px">จำนวนป้าย<input id="l-count" type="number" min="1" max="200" value="1" required></label>
+        <button class="btn primary" type="submit" id="l-submit">สร้างป้าย</button>
+      </div>
+      <div id="label-msg" hidden></div>
+    </form>
+    <div class="panel stack" id="label-out" hidden>
+      <div class="card-head">
+        <h2 style="margin:0" id="label-out-title">ป้ายที่สร้าง</h2>
+        <div class="row">
+          <select id="l-paper" style="width:auto"><option value="a4">A4 (8 ป้าย/แผ่น)</option><option value="sticker">สติกเกอร์ 100x75 mm</option></select>
+          <a class="btn primary" id="l-print" target="_blank" rel="noopener">พิมพ์ป้าย</a>
+        </div>
+      </div>
+      <div class="labels" id="label-preview"></div>
+    </div>
+  </section>
+
+  <!-- LIST -->
+  <section id="view-list" class="stack" hidden>
+    <div class="card-head">
+      <div><h2>รายการสินค้าทั้งหมด</h2><p class="sub" style="margin:0">กดแถวเพื่อเปิดรายการ · ข้อมูลเต็มอยู่ใน Google Sheet</p></div>
+      <button class="btn" id="refresh-btn" type="button">รีเฟรช</button>
+    </div>
+    <div class="counts" id="counts"></div>
+    <div class="row">
+      <label class="f" style="flex:1 1 240px">ค้นหา<input id="q" placeholder="รหัส, เลขบิล, ร้านค้า, ทะเบียนรถ"></label>
+      <label class="f" style="width:170px">วันที่ออกรถ<input id="q-date" type="date"></label>
+    </div>
+    <div class="tablebox">
+      <table>
+        <thead><tr><th>รหัส</th><th>สถานะ</th><th>เลขบิล</th><th>ร้านค้า</th><th>จำนวน</th><th>รับเข้า</th><th>รถ</th><th>ออกรถ</th><th>ถึง</th><th>นัดส่ง</th><th>ส่งสำเร็จ</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div id="list-empty" class="empty">กำลังโหลด...</div>
+    </div>
+  </section>
+</main>
+<div id="toast" class="toast" hidden></div>
+<canvas id="cv" hidden></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbw-nseMsaHBdGiIxnaEYs7P6AucPAq3Cey23D8fAuFocfBwlX-4frdlX9H7RvKHsPNYbw/exec";
+const APP_URL = location.origin + location.pathname;
+const START_CODE = ((new URLSearchParams(location.search).get("c")||"").toUpperCase().match(/SCL[0-9]{6}-[A-Z0-9]{4}/)||[""])[0];
+const ST = ["รอรับเข้า","รับเข้าคลัง","ขึ้นรถแล้ว","ถึงปลายทาง","ส่งสำเร็จ"];
+const TRUCK_TYPES = ["10W","18W","22W","รถร่วม"];
+const CODE_RE = /SCL\d{6}-[A-Z0-9]{4}/;
+
+let PIN="", NAME="", mode="view", labelKind="full", items=[], filterStatus=-1;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const fmtD=s=>{if(!s)return "-";const p=String(s).slice(0,10).split("-");return p.length===3?`${p[2]}/${p[1]}/${+p[0]+543}`:s};
+const si=s=>Math.max(0,ST.indexOf(s));
+const pill=s=>`<span class="pill s${si(s)}">${esc(s||ST[0])}</span>`;
+function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2600)}
+function note(el,msg,kind){el.className="notice"+(kind?" "+kind:"");el.textContent=msg;el.hidden=!msg}
+function parseCode(raw){const m=String(raw||"").toUpperCase().match(CODE_RE);return m?m[0]:String(raw||"").trim().toUpperCase()}
+function store(k,v){try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}
+function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
+async function api(fn,...args){let r;
+  try{r=await fetch(API_URL,{method:"POST",body:JSON.stringify({fn,pin:PIN,args})})}catch(e){throw new Error("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบอินเทอร์เน็ต")}
+  let j;try{j=await r.json()}catch(e){throw new Error("เซิร์ฟเวอร์ตอบกลับผิดรูปแบบ")}
+  if(!j.ok)throw new Error(j.error||"เกิดข้อผิดพลาด");return j.data}
+function qrPayload(code){return APP_URL+"?c="+code}
+function qrSvg(text){const q=qrcode(0,"M");q.addData(text);q.make();const n=q.getModuleCount(),m=2,s=n+m*2;let p="";
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))p+=`M${c+m} ${r+m}h1v1h-1z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s} ${s}" shape-rendering="crispEdges"><rect width="${s}" height="${s}" fill="#fff"/><path d="${p}" fill="#000"/></svg>`}
+
+/* ---------- login ---------- */
+$("g-name").value=load("scl_name")||"";
+$("gate-form").addEventListener("submit",async e=>{e.preventDefault();PIN=$("g-pin").value.trim();NAME=$("g-name").value.trim();
+  $("g-btn").disabled=true;
+  try{await api("apiCheck");store("scl_pin",PIN);store("scl_name",NAME);enter()}
+  catch(err){note($("g-msg"),err.message,"err")}finally{$("g-btn").disabled=false}});
+function enter(){$("gate").hidden=true;$("who").innerHTML=`${esc(NAME)}<button type="button" id="logout">ออก</button>`;
+  $("logout").onclick=()=>{store("scl_pin",null);location.reload()};
+  if(START_CODE&&CODE_RE.test(START_CODE)){setMode("view");lookup(START_CODE)}}
+(async()=>{const p=load("scl_pin"),n=load("scl_name");if(p&&n){PIN=p;NAME=n;try{await api("apiCheck");enter()}catch(e){PIN=""}}})();
+
+/* ---------- tabs ---------- */
+function showTab(t){for(const b of document.querySelectorAll("nav button"))b.setAttribute("aria-selected",b.dataset.tab===t);
+  for(const v of ["scan","labels","list"])$("view-"+v).hidden=v!==t;if(t!=="scan")stopCam();if(t==="list")refreshList()}
+document.querySelector("nav").addEventListener("click",e=>{const b=e.target.closest("button");if(b)showTab(b.dataset.tab)});
+
+/* ---------- modes ---------- */
+const BATCH_FIELDS={
+  1:[["b-date","วันที่รับเข้า","date",today]],
+  2:[["b-truck","ทะเบียน / รหัสรถ","text"],["b-ttype","ประเภทรถ","select"],["b-ship","วันที่ออกรถ","date",today],["b-driver","คนขับ","text"]],
+  3:[["b-date","วันที่ถึงปลายทาง","date",today]],
+  4:[["b-date","วันที่ส่งสำเร็จ","date",today],["b-recv","ผู้รับสินค้า (ถ้ามี)","text"]]
+};
+function prefs(){try{return JSON.parse(load("scl_scan")||"{}")}catch(e){return {}}}
+function savePrefs(){const v={};for(const el of $("batch-fields").querySelectorAll("input,select"))v[el.id]=el.value;store("scl_scan",JSON.stringify({mode,day:today(),v}))}
+function setMode(m){mode=String(m);for(const b of $("modes").children)b.setAttribute("aria-pressed",b.dataset.mode===mode);
+  const bf=$("batch-fields");bf.innerHTML="";const isBatch=mode!=="view";bf.hidden=!isBatch;$("batch-log-wrap").hidden=!isBatch;$("item-view").hidden=isBatch;
+  const pr=prefs(),keep=pr.v||{};
+  for(const [id,lab,type,def] of BATCH_FIELDS[mode]||[]){
+    const inp=type==="select"?`<select id="${id}">${TRUCK_TYPES.map(t=>`<option>${t}</option>`).join("")}</select>`:`<input id="${id}" type="${type}" value="${def?def():""}">`;
+    bf.insertAdjacentHTML("beforeend",`<label class="f">${lab}${inp}</label>`);
+    if(keep[id]!==undefined&&!(type==="date"&&pr.day!==today()))$(id).value=keep[id]}
+  $("cam-hint").textContent=isBatch?`โหมด${ST[+mode]}: สแกนต่อเนื่องได้เลย`:"เล็ง QR ให้อยู่ในกรอบ";
+  $("last-result").hidden=true;$("scan-msg").hidden=true;savePrefs()}
+$("modes").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setMode(b.dataset.mode)});
+$("batch-fields").addEventListener("input",savePrefs);
+setMode(BATCH_FIELDS[prefs().mode]?prefs().mode:"view");
+
+/* ---------- live camera ---------- */
+let stream=null,timer=null,lastCode="",lastAt=0,detector=null,busy=false,actx=null;
+function beep(ok){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();
+  o.frequency.value=ok?1200:300;g.gain.value=.15;o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+(ok?.12:.35))}catch(e){}
+  try{navigator.vibrate&&navigator.vibrate(ok?60:[80,60,80])}catch(e){}}
+$("cam-btn").addEventListener("click",startCam);
+$("cam-close").addEventListener("click",stopCam);
+// Google's web-app frame may not allow live camera: then the scan button opens the phone camera (photo) instead.
+function liveCamAllowed(){const fp=document.permissionsPolicy||document.featurePolicy;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return false;
+  try{if(fp&&fp.allowsFeature&&!fp.allowsFeature("camera"))return false}catch(e){}return true}
+if(!liveCamAllowed()){$("cam-btn").lastChild.textContent="สแกนป้าย (ถ่ายรูป)";$("photo-btn").hidden=true;$("cam-btn").parentNode.style.gridTemplateColumns="1fr"}
+async function startCam(){
+  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}
+  if(!liveCamAllowed()){$("photo-input").click();return}
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false})}
+  catch(e){note($("scan-msg"),"กล้องสดใช้ไม่ได้ในเครื่องนี้ ("+e.name+") เปิดกล้องถ่ายรูปให้แทน ถ่ายป้ายให้เห็น QR ชัด ๆ","err");try{$("photo-input").click()}catch(x){}return}
+  const v=$("video");v.srcObject=stream;$("cam").hidden=false;$("cam-btn").hidden=true;$("scan-msg").hidden=true;
+  try{await v.play()}catch(e){}
+  if(!detector&&"BarcodeDetector" in window){try{const f=await BarcodeDetector.getSupportedFormats();if(f.includes("qr_code"))detector=new BarcodeDetector({formats:["qr_code"]})}catch(e){}}
+  tick()}
+function stopCam(){clearTimeout(timer);if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$("cam").hidden=true;$("cam-btn").hidden=false}
+async function tick(){if(!stream)return;const v=$("video");let txt=null;
+  if(!busy&&v.readyState>=2){
+    try{if(detector){const r=await detector.detect(v);if(r&&r[0])txt=r[0].rawValue}
+      else{const cv=$("cv"),k=Math.min(1,720/Math.max(v.videoWidth,v.videoHeight));cv.width=Math.round(v.videoWidth*k);cv.height=Math.round(v.videoHeight*k);
+        const cx=cv.getContext("2d",{willReadFrequently:true});cx.drawImage(v,0,0,cv.width,cv.height);
+        const r=jsQR(cx.getImageData(0,0,cv.width,cv.height).data,cv.width,cv.height,{inversionAttempts:"dontInvert"});if(r)txt=r.data}}catch(e){}}
+  if(txt){const code=parseCode(txt),now=Date.now();
+    if(code!==lastCode||now-lastAt>4000){lastCode=code;lastAt=now;busy=true;
+      try{if(mode==="view"){stopCam();await lookup(code)}else await batchApply(code)}finally{busy=false}}}
+  timer=setTimeout(tick,150)}
+
+/* ---------- photo fallback ---------- */
+$("photo-btn").addEventListener("click",()=>$("photo-input").click());
+$("photo-input").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;e.target.value="";
+  note($("scan-msg"),"กำลังอ่าน QR จากรูป...");
+  try{const txt=await decodeImage(f);if(!txt){beep(false);note($("scan-msg"),"อ่าน QR ไม่ได้ ถ่ายใหม่ให้ป้ายอยู่กลางภาพ ไม่เอียง ไม่สะท้อนแสง","err");return}
+    $("scan-msg").hidden=true;const code=parseCode(txt);if(mode==="view")await lookup(code);else await batchApply(code)}
+  catch(err){note($("scan-msg"),"อ่านรูปไม่สำเร็จ: "+err.message,"err")}});
+async function decodeImage(file){const url=URL.createObjectURL(file);
+  try{const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error("เปิดรูปไม่ได้"));i.src=url});
+    const W=img.naturalWidth,H=img.naturalHeight,cv=$("cv"),cx=cv.getContext("2d",{willReadFrequently:true});
+    for(const [fr,max] of [[1,1200],[0.6,1000],[1,1800],[0.4,900],[0.75,1400],[1,2600]]){const sw=W*fr,sh=H*fr,k=Math.min(1,max/Math.max(sw,sh));
+      cv.width=Math.round(sw*k);cv.height=Math.round(sh*k);cx.drawImage(img,(W-sw)/2,(H-sh)/2,sw,sh,0,0,cv.width,cv.height);
+      const r=jsQR(cx.getImageData(0,0,cv.width,cv.height).data,cv.width,cv.height,{inversionAttempts:"attemptBoth"});if(r&&r.data)return r.data;
+      await new Promise(r=>setTimeout(r,0))}
+    return null}finally{URL.revokeObjectURL(url)}}
+
+$("scan-form").addEventListener("submit",async e=>{e.preventDefault();const c=parseCode($("scan-input").value);$("scan-input").value="";if(!c)return;
+  if(mode==="view")await lookup(c);else await batchApply(c)});
+
+function showResult(ok,html){const el=$("last-result");el.className="lastres "+(ok?"ok":"err");el.innerHTML=html;el.hidden=false}
+
+/* ---------- view one item ---------- */
+async function lookup(code){
+  if(!CODE_RE.test(code)){beep(false);showResult(false,`<span>"${esc(code)}" ไม่ใช่ป้าย SCL</span>`);return}
+  note($("scan-msg"),`อ่านได้ ${code} กำลังดึงข้อมูล...`);
+  try{const r=await api("apiGet",code);$("scan-msg").hidden=true;beep(true);renderItem(code,r.item,r.log);
+    showResult(!!r.item,r.item?`<span class="code">${esc(code)}</span>${pill(r.item.status)}<span>${esc(r.item.store)} · บิล ${esc(r.item.billNo||"-")}</span>`:`<span class="code">${esc(code)}</span><span>ป้ายเปล่า ยังไม่มีข้อมูล กรอกด้านล่างเพื่อรับเข้า</span>`);
+    $("item-view").scrollIntoView({behavior:"smooth",block:"start"})}
+  catch(err){beep(false);note($("scan-msg"),"ดึงข้อมูลไม่สำเร็จ: "+err.message,"err")}}
+
+function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
+  if(!it){box.innerHTML=`<div class="panel"><div class="card-head"><span class="code">${esc(code)}</span>${pill(ST[0])}</div>
+    <p class="sub" style="margin:10px 0">ป้ายเปล่า กรอกข้อมูลเพื่อรับเข้าคลัง</p>${editForm({},true)}</div>`;bindEdit(code,true,null);return}
+  const i=si(it.status);
+  const dates=[it.createdAt,it.receivedDate,it.shipDate,it.arrivedDate,it.deliveredDate];
+  const track=ST.map((s,k)=>`<div class="step ${k<i?"done":k===i?"now done":""}"><b>${s}</b>${k<=i?fmtD(dates[k]):"&nbsp;"}</div>`).join("");
+  box.innerHTML=`<div class="panel">
+    <div class="card-head"><span class="code">${esc(code)}</span>${pill(it.status)}</div>
+    <dl class="kv">
+      <div><dt>เลขที่บิล</dt><dd>${esc(it.billNo||"-")}</dd></div>
+      <div><dt>ร้านค้าปลายทาง</dt><dd>${esc(it.store||"-")}</dd></div>
+      <div><dt>สาขา / จุดกระจาย</dt><dd>${esc(it.branch||"-")}</dd></div>
+      <div><dt>จำนวน</dt><dd>${esc(it.qty||"-")} ${esc(it.unit)}</dd></div>
+      <div><dt>สินค้า</dt><dd>${esc(it.desc||"-")}</dd></div>
+      <div><dt>รถ</dt><dd>${esc(it.truck||"-")} ${it.truckType?"("+esc(it.truckType)+")":""}</dd></div>
+      <div><dt>คนขับ</dt><dd>${esc(it.driver||"-")}</dd></div>
+      <div><dt>วันนัดส่ง</dt><dd>${fmtD(it.planDate)}</dd></div>
+      ${it.receiver?`<div><dt>ผู้รับสินค้า</dt><dd>${esc(it.receiver)}</dd></div>`:""}
+      ${it.note?`<div style="grid-column:1/-1"><dt>หมายเหตุ</dt><dd>${esc(it.note)}</dd></div>`:""}
+    </dl>
+    <div class="track">${track}</div>
+    ${i<4?nextForm(i+1,it):`<div class="notice ok" style="margin-top:16px">ส่งสินค้าสำเร็จแล้ว ${fmtD(it.deliveredDate)}</div>`}
+    <details><summary>แก้ไขข้อมูล / เปลี่ยนสถานะ</summary>${editForm(it,false)}</details>
+    <details><summary>ประวัติ (${log.length})</summary><ul class="hist">${log.map(x=>`<li><b>${esc(x.action)}</b> ${esc(x.detail)} · ${esc(x.at)} · ${esc(x.by)}</li>`).join("")||"<li>ยังไม่มีประวัติ</li>"}</ul></details>
+    <div style="margin-top:14px"><a class="btn" target="_blank" rel="noopener" href="${esc(API_URL+"?codes="+code)}">พิมพ์ป้ายใบนี้ซ้ำ</a></div>
+  </div>`;
+  if(i<4)bindNext(code,i+1);bindEdit(code,false,it)}
+
+function nextForm(k,it){const f={
+  1:`<label class="f">วันที่รับเข้า<input id="n-date" type="date" value="${today()}"></label><label class="f">จำนวนที่รับจริง<input id="n-qty" type="number" step="any" value="${esc(it.qty)}"></label>`,
+  2:`<label class="f">ทะเบียน / รหัสรถ<input id="n-truck" value="${esc(it.truck)}"></label><label class="f">ประเภทรถ<select id="n-ttype">${TRUCK_TYPES.map(t=>`<option ${t===it.truckType?"selected":""}>${t}</option>`).join("")}</select></label><label class="f">วันที่ออกรถ<input id="n-date" type="date" value="${today()}"></label><label class="f">คนขับ<input id="n-driver" value="${esc(it.driver)}"></label>`,
+  3:`<label class="f">วันที่ถึงปลายทาง<input id="n-date" type="date" value="${today()}"></label>`,
+  4:`<label class="f">วันที่ส่งสำเร็จ<input id="n-date" type="date" value="${today()}"></label><label class="f">ผู้รับสินค้า<input id="n-recv"></label>`}[k];
+  return `<form class="next" id="next-form"><h3>ขั้นตอนถัดไป: ${ST[k]}</h3><div class="grid">${f}</div><div class="row" style="margin-top:12px"><button class="btn primary big" type="submit" style="flex:1">บันทึก "${ST[k]}"</button></div></form>`}
+function stepPatch(k,v){k=+k;
+  if(k===1){const p={status:ST[1],receivedDate:v.date};if(v.qty!=null&&v.qty!=="")p.qty=v.qty;return p}
+  if(k===2){if(!v.truck||!v.truck.trim())throw new Error("กรอกทะเบียนรถก่อน");return {status:ST[2],truck:v.truck.trim().toUpperCase(),truckType:v.ttype,shipDate:v.date,driver:(v.driver||"").trim()}}
+  if(k===3)return {status:ST[3],arrivedDate:v.date};
+  if(k===4){const p={status:ST[4],deliveredDate:v.date};if(v.recv)p.receiver=v.recv.trim();return p}}
+function bindNext(code,k){$("next-form").addEventListener("submit",async e=>{e.preventDefault();const g=id=>$(id)?$(id).value:undefined;const btn=e.target.querySelector("button");btn.disabled=true;
+  try{await api("apiSave",code,stepPatch(k,{date:g("n-date")||today(),qty:g("n-qty"),truck:g("n-truck"),ttype:g("n-ttype"),driver:g("n-driver"),recv:g("n-recv")}),ST[k],NAME,true);
+    toast(`${code} → ${ST[k]}`);await lookup(code)}catch(err){btn.disabled=false;toast(err.message)}})}
+
+function editForm(it,isNew){return `<form id="edit-form" class="stack" style="margin-top:12px"><div class="grid">
+    <label class="f">เลขที่บิล<input id="e-bill" value="${esc(it.billNo)}" ${isNew?"required":""}></label>
+    <label class="f">ร้านค้าปลายทาง<input id="e-store" value="${esc(it.store)}" ${isNew?"required":""}></label>
+    <label class="f">สาขา / จุดกระจาย<input id="e-branch" value="${esc(it.branch)}"></label>
+    <label class="f">จำนวน<input id="e-qty" type="number" step="any" value="${esc(it.qty)}"></label>
+    <label class="f">หน่วย<input id="e-unit" value="${esc(it.unit||"กล่อง")}"></label>
+    <label class="f">วันนัดส่ง<input id="e-plan" type="date" value="${esc(it.planDate)}"></label>
+    <label class="f wide">สินค้า<input id="e-desc" value="${esc(it.desc)}"></label>
+    ${isNew?`<label class="f">วันที่รับเข้า<input id="e-recvdate" type="date" value="${today()}"></label>`:`
+    <label class="f">สถานะ<select id="e-status">${ST.map(s=>`<option ${s===it.status?"selected":""}>${s}</option>`).join("")}</select></label>
+    <label class="f">วันที่รับเข้า<input id="e-recvdate" type="date" value="${esc(it.receivedDate)}"></label>
+    <label class="f">ทะเบียนรถ<input id="e-truck" value="${esc(it.truck)}"></label>
+    <label class="f">ประเภทรถ<select id="e-ttype"><option value="">-</option>${TRUCK_TYPES.map(t=>`<option ${t===it.truckType?"selected":""}>${t}</option>`).join("")}</select></label>
+    <label class="f">คนขับ<input id="e-driver" value="${esc(it.driver)}"></label>
+    <label class="f">วันที่ออกรถ<input id="e-ship" type="date" value="${esc(it.shipDate)}"></label>
+    <label class="f">วันที่ถึง<input id="e-arr" type="date" value="${esc(it.arrivedDate)}"></label>
+    <label class="f">วันที่ส่งสำเร็จ<input id="e-del" type="date" value="${esc(it.deliveredDate)}"></label>
+    <label class="f">ผู้รับสินค้า<input id="e-recv" value="${esc(it.receiver)}"></label>`}
+    <label class="f wide">หมายเหตุ<textarea id="e-note">${esc(it.note)}</textarea></label>
+  </div><div class="row"><button class="btn primary" type="submit">${isNew?"บันทึกรับเข้าคลัง":"บันทึกการแก้ไข"}</button></div></form>`}
+function bindEdit(code,isNew,it){$("edit-form").addEventListener("submit",async e=>{e.preventDefault();const g=id=>($(id)?$(id).value:"").trim();
+  const p={billNo:g("e-bill"),store:g("e-store"),branch:g("e-branch"),qty:g("e-qty"),unit:g("e-unit"),planDate:g("e-plan"),desc:g("e-desc"),note:g("e-note"),receivedDate:g("e-recvdate")};
+  let action="แก้ไขข้อมูล";
+  if(isNew){p.status=ST[1];action=ST[1];if(!p.receivedDate)p.receivedDate=today()}
+  else{Object.assign(p,{status:g("e-status"),truck:g("e-truck").toUpperCase(),truckType:g("e-ttype"),driver:g("e-driver"),shipDate:g("e-ship"),arrivedDate:g("e-arr"),deliveredDate:g("e-del"),receiver:g("e-recv")})}
+  const btn=e.target.querySelector("button[type=submit]");btn.disabled=true;
+  try{await api("apiSave",code,p,action,NAME,false);toast("บันทึกแล้ว");await lookup(code)}catch(err){btn.disabled=false;toast(err.message)}})}
+
+/* ---------- batch (continuous) ---------- */
+let batchN=0;
+async function batchApply(code){const li=document.createElement("li");$("batch-log").prepend(li);
+  li.innerHTML=`<span class="code">${esc(code)}</span><span>กำลังบันทึก...</span>`;
+  try{if(!CODE_RE.test(code))throw new Error("ไม่ใช่ป้าย SCL");
+    const g=id=>$(id)?$(id).value:undefined;
+    const p=stepPatch(mode,{date:g("b-date")||g("b-ship")||today(),truck:g("b-truck"),ttype:g("b-ttype"),driver:g("b-driver"),recv:g("b-recv")});
+    const r=await api("apiSave",code,p,ST[+mode],NAME,mode!=="1");
+    const warn=si(r.prev)>=+mode?` (เดิม: ${r.prev})`:"";
+    li.innerHTML=`<span class="code">${esc(code)}</span>${pill(ST[+mode])}<span>${esc((r.item.store||"ป้ายเปล่า")+(p.truck?" · "+p.truck:"")+warn)}</span>`;
+    beep(true);showResult(true,li.innerHTML)}
+  catch(err){li.className="err";li.innerHTML=`<span class="code">${esc(code)}</span><span>${esc(err.message)}</span>`;beep(false);showResult(false,li.innerHTML)}
+  batchN++;$("batch-count").textContent=`${batchN} รายการ`}
+
+/* ---------- labels ---------- */
+let lastBatch=null,lastLabels=[];
+$("label-kind").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;labelKind=b.dataset.kind;
+  for(const x of $("label-kind").children)x.setAttribute("aria-pressed",x===b);$("label-detail").hidden=labelKind==="blank";
+  $("l-bill").required=$("l-store").required=labelKind==="full"});
+$("label-form").addEventListener("submit",async e=>{e.preventDefault();const msg=$("label-msg");const n=Math.max(1,Math.min(200,parseInt($("l-count").value)||1));
+  const base=labelKind==="full"?{billNo:$("l-bill").value.trim(),store:$("l-store").value.trim(),branch:$("l-branch").value.trim(),planDate:$("l-plan").value,
+    desc:$("l-desc").value.trim(),qty:$("l-qty").value,unit:$("l-unit").value}:{};
+  if(labelKind==="full"&&$("l-recv").value==="1"){base.status=ST[1];base.receivedDate=today()}
+  $("l-submit").disabled=true;note(msg,`กำลังสร้าง ${n} ป้าย...`);
+  try{const r=await api("apiCreateLabels",base,n,NAME);lastBatch=r.batch;lastLabels=r.items;renderLabels();note(msg,`สร้าง ${n} ป้ายแล้ว (ชุด ${r.batch})`,"ok")}
+  catch(err){note(msg,"สร้างไม่สำเร็จ: "+err.message,"err")}finally{$("l-submit").disabled=false}});
+function labelText(l){return l.billNo?`<div>บิล <b>${esc(l.billNo)}</b> · ${esc(l.seq)}</div><div><b>${esc(l.store)}</b></div><div>${esc(l.branch)}</div><div>${esc(l.qty)} ${esc(l.unit)} ${esc(l.desc)}</div>`:`<div>ป้ายเปล่า ${esc(l.seq)}</div>`}
+function renderLabels(){$("label-out").hidden=false;$("label-out-title").textContent=`ป้ายที่สร้าง (${lastLabels.length})`;
+  $("label-preview").innerHTML=lastLabels.map(l=>`<div class="lbl">${qrSvg(qrPayload(l.code))}<div class="t"><div class="code">${esc(l.code)}</div>${labelText(l)}</div></div>`).join("");updatePrint()}
+function updatePrint(){if(lastBatch)$("l-print").href=API_URL+"?print="+encodeURIComponent(lastBatch)+"&paper="+$("l-paper").value}
+$("l-paper").addEventListener("change",updatePrint);
+
+/* ---------- list ---------- */
+async function refreshList(){$("list-empty").hidden=false;$("list-empty").textContent="กำลังโหลด...";
+  try{items=await api("apiList");items.sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));renderList()}
+  catch(err){$("list-empty").textContent="โหลดไม่สำเร็จ: "+err.message}}
+$("refresh-btn").addEventListener("click",refreshList);
+function filtered(){const q=$("q").value.trim().toLowerCase(),qd=$("q-date").value;
+  return items.filter(it=>(filterStatus<0||si(it.status)===filterStatus)&&(!qd||it.shipDate===qd)&&(!q||[it.code,it.billNo,it.store,it.truck,it.branch,it.desc].some(v=>String(v||"").toLowerCase().includes(q))))}
+function renderList(){const c=[0,0,0,0,0];for(const it of items)c[si(it.status)]++;
+  $("counts").innerHTML=`<button data-s="-1" aria-pressed="${filterStatus<0}"><small>ทั้งหมด</small><strong>${items.length}</strong></button>`+ST.map((s,k)=>`<button data-s="${k}" aria-pressed="${filterStatus===k}"><small>${s}</small><strong>${c[k]}</strong></button>`).join("");
+  const rows=filtered();
+  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td class="code">${esc(it.code)}</td><td>${pill(it.status)}</td><td>${esc(it.billNo)}</td><td>${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}</td><td>${esc(it.truck)}${it.truckType?" · "+esc(it.truckType):""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}</td><td>${fmtD(it.deliveredDate)}</td></tr>`).join("");
+  $("list-empty").hidden=rows.length>0;$("list-empty").textContent=items.length?"ไม่พบรายการตามเงื่อนไข":"ยังไม่มีสินค้า เริ่มจากแท็บ สร้างป้าย QR"}
+$("counts").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;filterStatus=+b.dataset.s;renderList()});
+$("q").addEventListener("input",renderList);$("q-date").addEventListener("input",renderList);
+$("tbody").addEventListener("click",e=>{const tr=e.target.closest("tr");if(!tr)return;showTab("scan");setMode("view");lookup(tr.dataset.code)});
+</script>
+</body>
+</html>
