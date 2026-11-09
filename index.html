@@ -490,17 +490,12 @@ $("l-photo-input").addEventListener("change",async e=>{const f=e.target.files&&e
   try{const d=await shrink(f,2000,.85);$("l-photo-img").src=d;$("l-photo-prev").hidden=false;
     const r=await api("apiOcr",d,NAME);billPhoto=r.photoId;const g=r.guess||{};const got=[];
     if(labelKind!=="full")$("label-kind").children[0].click();
-    const F=[["customer","l-customer","ลูกค้า"],["billNo","l-bill","เลขที่บิล"],["store","l-store","ร้านค้า"],["branch","l-branch","สาขา"],["planDate","l-plan","วันนัดส่ง"],["desc","l-desc","สินค้า"]];
-    for(const [k,id,lab] of F){const v=String(g[k]||"").trim();if(v&&(k!=="planDate"||/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(v))){$(id).value=v;got.push(lab)}}
-    if(g.unit){const u=String(g.unit).trim(),sel=$("l-unit");if(![...sel.options].some(o=>o.value===u))sel.add(new Option(u,u));sel.value=u;got.push("หน่วย")}
-    const qty=+g.qty||0,pal=Math.round(+g.pallets||0),even=pal>0&&qty%pal===0;
-    if(pal>0){$("l-count").value=Math.min(200,pal);got.push("จำนวนป้าย")}
-    if(qty>0){$("l-qty").value=even?qty/pal:qty;got.push(even?"จำนวนต่อป้าย":"จำนวน")}
+    if(g.customer){$("l-customer").value=g.customer;got.push("ลูกค้า")}
+    if(g.billNo){$("l-bill").value=g.billNo;got.push("เลขที่บิล")}
+    if(g.store){$("l-store").value=g.store;got.push("ร้านค้า")}
     $("l-ocr").value=r.text||"";$("l-ocr-wrap").hidden=!r.text;
-    const how=r.ai?"อ่านด้วย AI":"อ่านแบบพื้นฐาน"+(r.aiError?" ("+r.aiError+")":"");
-    const warn=qty>0&&pal>0&&!even?" · จำนวนรวม "+qty+" แบ่งเท่ากันไม่ลงตัว ให้แก้จำนวนต่อป้ายเอง":"";
-    if(got.length)note(msg,how+" กรอกให้แล้ว: "+got.join(", ")+warn+" ตรวจและแก้ให้ถูกก่อนกดสร้างป้าย","ok");
-    else note(msg,how+": หาข้อมูลในรูปไม่เจอ ลองถ่ายใหม่ให้บิลเต็มภาพ ชัด ไม่เอียง","err")}
+    if(got.length)note(msg,"อ่านได้: "+got.join(", ")+(g.qty?" · จำนวนในบิล "+g.qty:"")+" ตรวจและแก้ให้ถูกก่อนกดสร้างป้าย","ok");
+    else note(msg,r.text?"อ่านข้อความได้ แต่หาช่องข้อมูลไม่เจอ ดูข้อความที่อ่านได้ด้านล่างแล้วกรอกเอง":"อ่านข้อความจากรูปไม่ได้ ลองถ่ายใหม่ให้บิลเต็มภาพ ชัด ไม่เอียง","err")}
   catch(err){note(msg,"อ่านรูปไม่สำเร็จ: "+err.message,"err")}finally{$("l-photo-btn").disabled=false}});
 function labelText(l){return (l.customer?`<div>ลูกค้า <b>${esc(l.customer)}</b></div>`:"")+(l.billNo?`<div>บิล <b>${esc(l.billNo)}</b> · ${esc(l.seq)}</div><div><b>${esc(l.store)}</b></div><div>${esc(l.branch)}</div><div>${esc(l.qty)} ${esc(l.unit)} ${esc(l.desc)}</div>`:`<div>ป้ายเปล่า ${esc(l.seq)}</div>`)}
 function renderLabels(){$("label-out").hidden=false;$("label-out-title").textContent=`ป้ายที่สร้าง (${lastLabels.length})`;
