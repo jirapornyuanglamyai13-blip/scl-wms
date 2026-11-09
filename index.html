@@ -111,7 +111,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
 
 <div class="gate" id="gate">
   <form class="panel stack" id="gate-form" autocomplete="off">
-    <div><h2>SCL WMS</h2><p class="sub" style="margin:0">ระบบติดตามพาเลท/กล่องสินค้า สหโชค โลจิสติกส์</p></div>
+    <div><h2>SCL WMS</h2><p class="sub" style="margin:0">ระบบติดตามสินค้ารายบิล สหโชค โลจิสติกส์</p></div>
     <label class="f">ชื่อผู้ใช้งาน<input id="g-name" required placeholder="เช่น สมชาย คลังลำปาง"></label>
     <label class="f">PIN<input id="g-pin" type="password" inputmode="numeric" required></label>
     <button class="btn primary big" type="submit" id="g-btn">เข้าใช้งาน</button>
@@ -121,7 +121,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
 
 <header>
   <div class="wrap bar">
-    <div class="brand"><b>SCL WMS</b><span>ติดตามพาเลท / กล่องสินค้าด้วย QR</span></div>
+    <div class="brand"><b>SCL WMS</b><span>ติดตามสินค้ารายบิลด้วย QR</span></div>
     <div class="who" id="who"></div>
     <nav>
       <button data-tab="scan" aria-selected="true">สแกน</button>
@@ -176,7 +176,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
 
   <!-- LABELS -->
   <section id="view-labels" class="stack" hidden>
-    <div><h2>สร้างป้าย QR</h2><p class="sub">ป้าย 1 ใบ = พาเลท/กล่อง 1 ชิ้น สร้างพร้อมข้อมูลบิล หรือสร้างป้ายเปล่าแล้วกรอกตอนสแกนรับเข้า</p></div>
+    <div><h2>สร้างป้าย QR</h2><p class="sub">ป้าย 1 ใบ = สินค้า 1 บิล สร้างพร้อมข้อมูลบิล หรือสร้างป้ายเปล่าแล้วกรอกตอนสแกนรับเข้า</p></div>
     <form id="label-form" class="panel stack" autocomplete="off">
       <div class="modes" id="label-kind">
         <button type="button" data-kind="full" aria-pressed="true">ป้ายพร้อมข้อมูลบิล</button>
@@ -199,7 +199,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
         <label class="f">สาขา / จุดกระจาย<input id="l-branch"></label>
         <label class="f">วันนัดส่ง<input id="l-plan" type="date"></label>
         <label class="f wide">สินค้า<input id="l-desc"></label>
-        <label class="f">จำนวนต่อป้าย<input id="l-qty" type="number" min="0" step="any" value="1"></label>
+        <label class="f">จำนวนสินค้าในบิล<input id="l-qty" type="number" min="0" step="any" value="1"></label>
         <label class="f">หน่วย<select id="l-unit"><option>กล่อง</option><option>พาเลท</option><option>ลัง</option><option>ชิ้น</option><option>แพ็ค</option></select></label>
         <label class="f">สถานะเริ่มต้น<select id="l-recv"><option value="0">รอรับเข้า</option><option value="1">รับเข้าคลังแล้ววันนี้</option></select></label>
       </div>
@@ -244,7 +244,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
   <!-- KPI -->
   <section id="view-kpi" class="stack" hidden>
     <div class="card-head">
-      <div><h2>สรุป KPI</h2><p class="sub" style="margin:0">เลือกช่วงเวลา แล้วกดดึง KPI · หน่วยนับเป็นกล่อง</p></div>
+      <div><h2>สรุป KPI</h2><p class="sub" style="margin:0">เลือกช่วงเวลา แล้วกดดึง KPI · หน่วยนับเป็นบิล</p></div>
       <button class="btn" id="kpi-csv" type="button" disabled>ดาวน์โหลด Excel</button>
     </div>
     <div class="panel row">
@@ -597,20 +597,20 @@ function renderKpi(k){const t=k.total,out=$("kpi-out");out.hidden=false;
     arr.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.received}</td><td>${r.shipped}</td><td>${r.delivered}</td><td>${kv(r.onTimePct,"%")}</td><td>${kv(r.loadOnTimePct,"%")}</td><td>${kv(r.deliveredOfShippedPct,"%")}</td><td>${kv(r.leadTotal," วัน")}</td></tr>`).join("")+`</tbody></table></div></div>`;
   out.innerHTML=`<p class="sub" style="margin:0"><b>${esc(k.customer||"ทุกลูกค้า")}</b> · ช่วงวันที่ ${fmtD(k.from)} ถึง ${fmtD(k.to)} · คำนวณเมื่อ ${esc(k.generatedAt)}</p>
   <div class="kgrid">
-    ${card("รับเข้าคลัง",t.received+" กล่อง",t.receivedBills+" บิล")}
-    ${card("ขึ้นรถ",t.shipped+" กล่อง","")}
-    ${card("ส่งสำเร็จ",t.delivered+" กล่อง",t.deliveredBills+" บิล")}
-    ${card("ส่งตรงวันนัด (On-time)",kv(t.onTimePct,"%"),t.withPlan?`${t.onTime} จาก ${t.withPlan} กล่อง`:"ไม่มีรายการที่ระบุวันนัด")}
-    ${card("ส่งช้ากว่าวันนัด",kv(t.latePct,"%"),`${t.late} กล่อง`,t.late>0)}
-    ${card(`ขึ้นรถภายใน ${STUCK_DAYS} วันหลังรับเข้า`,kv(t.loadOnTimePct,"%"),t.loadN?`${t.loadN-t.slowLoad} จาก ${t.loadN} กล่อง`:"ยังไม่มีสินค้าขึ้นรถ")}
-    ${card(`ขึ้นรถช้ากว่า ${STUCK_DAYS} วัน`,kv(t.slowLoadPct,"%"),`${t.slowLoad} กล่อง`,t.slowLoad>0)}
-    ${card("ส่งสำเร็จแล้ว ของที่ขึ้นรถในช่วงนี้",kv(t.deliveredOfShippedPct,"%"),t.shipped?`${t.shippedDone} จาก ${t.shipped} กล่อง`:"ยังไม่มีสินค้าขึ้นรถ")}
+    ${card("รับเข้าคลัง",t.received+" บิล","")}
+    ${card("ขึ้นรถ",t.shipped+" บิล","")}
+    ${card("ส่งสำเร็จ",t.delivered+" บิล","")}
+    ${card("ส่งตรงวันนัด (On-time)",kv(t.onTimePct,"%"),t.withPlan?`${t.onTime} จาก ${t.withPlan} บิล`:"ไม่มีรายการที่ระบุวันนัด")}
+    ${card("ส่งช้ากว่าวันนัด",kv(t.latePct,"%"),`${t.late} บิล`,t.late>0)}
+    ${card(`ขึ้นรถภายใน ${STUCK_DAYS} วันหลังรับเข้า`,kv(t.loadOnTimePct,"%"),t.loadN?`${t.loadN-t.slowLoad} จาก ${t.loadN} บิล`:"ยังไม่มีสินค้าขึ้นรถ")}
+    ${card(`ขึ้นรถช้ากว่า ${STUCK_DAYS} วัน`,kv(t.slowLoadPct,"%"),`${t.slowLoad} บิล`,t.slowLoad>0)}
+    ${card("ส่งสำเร็จแล้ว ของที่ขึ้นรถในช่วงนี้",kv(t.deliveredOfShippedPct,"%"),t.shipped?`${t.shippedDone} จาก ${t.shipped} บิล`:"ยังไม่มีสินค้าขึ้นรถ")}
     ${card("Lead time รับเข้า ถึง ขึ้นรถ",kv(t.leadWh," วัน"),"เฉลี่ย")}
     ${card("Lead time รับเข้า ถึง ส่งสำเร็จ",kv(t.leadTotal," วัน"),"เฉลี่ย")}
-    ${card(`ตอนนี้ค้างโกดังเกิน ${STUCK_DAYS} วัน`,kv(k.stuckNowPct,"%"),`${k.stuckNow} จาก ${k.inWh} กล่องในคลัง`,k.stuckNow>0)}
-    ${card("ตอนนี้เลยวันนัด ยังส่งไม่สำเร็จ",kv(k.overdueNowPct,"%"),`${k.overdueNow} จาก ${k.openPlan} กล่องที่มีวันนัด`,k.overdueNow>0)}
+    ${card(`ตอนนี้ค้างโกดังเกิน ${STUCK_DAYS} วัน`,kv(k.stuckNowPct,"%"),`${k.stuckNow} จาก ${k.inWh} บิลในคลัง`,k.stuckNow>0)}
+    ${card("ตอนนี้เลยวันนัด ยังส่งไม่สำเร็จ",kv(k.overdueNowPct,"%"),`${k.overdueNow} จาก ${k.openPlan} บิลที่มีวันนัด`,k.overdueNow>0)}
   </div>`+tbl("แยกตามลูกค้า",k.byCustomer)+tbl("แยกตามสาขา / จุดกระจาย",k.byBranch)+
-  `<p class="sub" style="margin:0">On-time % = กล่องที่ส่งสำเร็จไม่เกินวันนัด ÷ กล่องที่ส่งสำเร็จในช่วงนี้และมีวันนัด · ขึ้นรถทันเวลา % = ขึ้นรถภายใน ${STUCK_DAYS} วันหลังรับเข้า ÷ กล่องที่ขึ้นรถในช่วงนี้ · Lead time คิดเป็นวัน</p>`}
+  `<p class="sub" style="margin:0">On-time % = บิลที่ส่งสำเร็จไม่เกินวันนัด ÷ บิลที่ส่งสำเร็จในช่วงนี้และมีวันนัด · ขึ้นรถทันเวลา % = ขึ้นรถภายใน ${STUCK_DAYS} วันหลังรับเข้า ÷ บิลที่ขึ้นรถในช่วงนี้ · Lead time คิดเป็นวัน</p>`}
 const normC=s=>String(s||"").replace(/ +/g," ").trim();
 function fillKpiCust(){const sel=$("kpi-cust"),cur=sel.value;
   const names=[...new Set(items.map(it=>normC(it.customer)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th"));
@@ -627,20 +627,20 @@ function kpiWorkbook(k){const X=XLSX,wb=X.utils.book_new(),t=k.total,cust=k.cust
   const P=x=>x==null?"-":x/100,N=x=>x==null?"-":x;
   const pr=new Set();const rows=[["รายงาน KPI การจัดส่ง · SCL สหโชค โลจิสติกส์"],["ลูกค้า",cust],["ช่วงวันที่",`${fmtD(k.from)} ถึง ${fmtD(k.to)}`],["จัดทำเมื่อ",k.generatedAt],[],["ตัวชี้วัด","ค่า","รายละเอียด"]];
   const add=(a,b,c,isPct)=>{if(isPct)pr.add(rows.length);rows.push([a,b,c])};
-  add("รับเข้าคลัง (กล่อง)",t.received,`${t.receivedBills} บิล`);
-  add("ขึ้นรถ (กล่อง)",t.shipped,"");
-  add("ส่งสำเร็จ (กล่อง)",t.delivered,`${t.deliveredBills} บิล`);
-  add("ส่งตรงวันนัด (On-time)",P(t.onTimePct),`${t.onTime} จาก ${t.withPlan} กล่องที่มีวันนัด`,1);
-  add("ส่งช้ากว่าวันนัด",P(t.latePct),`${t.late} กล่อง`,1);
-  add(`ขึ้นรถภายใน ${STUCK_DAYS} วันหลังรับเข้า`,P(t.loadOnTimePct),`${t.loadN-t.slowLoad} จาก ${t.loadN} กล่อง`,1);
-  add(`ขึ้นรถช้ากว่า ${STUCK_DAYS} วัน`,P(t.slowLoadPct),`${t.slowLoad} กล่อง`,1);
-  add("ส่งสำเร็จแล้ว ของที่ขึ้นรถในช่วงนี้",P(t.deliveredOfShippedPct),`${t.shippedDone} จาก ${t.shipped} กล่อง`,1);
+  add("รับเข้าคลัง (บิล)",t.received,"");
+  add("ขึ้นรถ (บิล)",t.shipped,"");
+  add("ส่งสำเร็จ (บิล)",t.delivered,"");
+  add("ส่งตรงวันนัด (On-time)",P(t.onTimePct),`${t.onTime} จาก ${t.withPlan} บิลที่มีวันนัด`,1);
+  add("ส่งช้ากว่าวันนัด",P(t.latePct),`${t.late} บิล`,1);
+  add(`ขึ้นรถภายใน ${STUCK_DAYS} วันหลังรับเข้า`,P(t.loadOnTimePct),`${t.loadN-t.slowLoad} จาก ${t.loadN} บิล`,1);
+  add(`ขึ้นรถช้ากว่า ${STUCK_DAYS} วัน`,P(t.slowLoadPct),`${t.slowLoad} บิล`,1);
+  add("ส่งสำเร็จแล้ว ของที่ขึ้นรถในช่วงนี้",P(t.deliveredOfShippedPct),`${t.shippedDone} จาก ${t.shipped} บิล`,1);
   add("Lead time รับเข้า ถึง ขึ้นรถ (วัน)",N(t.leadWh),"เฉลี่ย");
   add("Lead time รับเข้า ถึง ส่งสำเร็จ (วัน)",N(t.leadTotal),"เฉลี่ย");
-  add(`ณ วันที่ดึงข้อมูล: ค้างโกดังเกิน ${STUCK_DAYS} วัน`,P(k.stuckNowPct),`${k.stuckNow} จาก ${k.inWh} กล่องในคลัง`,1);
-  add("ณ วันที่ดึงข้อมูล: เลยวันนัด ยังส่งไม่สำเร็จ",P(k.overdueNowPct),`${k.overdueNow} จาก ${k.openPlan} กล่องที่มีวันนัด`,1);
+  add(`ณ วันที่ดึงข้อมูล: ค้างโกดังเกิน ${STUCK_DAYS} วัน`,P(k.stuckNowPct),`${k.stuckNow} จาก ${k.inWh} บิลในคลัง`,1);
+  add("ณ วันที่ดึงข้อมูล: เลยวันนัด ยังส่งไม่สำเร็จ",P(k.overdueNowPct),`${k.overdueNow} จาก ${k.openPlan} บิลที่มีวันนัด`,1);
   X.utils.book_append_sheet(wb,sheet(rows,null,[42,16,40],pr),"สรุป KPI");
-  const gh=["ชื่อ","รับเข้า (กล่อง)","ขึ้นรถ (กล่อง)","ส่งสำเร็จ (กล่อง)","On-time","ส่งช้า","ขึ้นรถทันเวลา","ส่งสำเร็จของที่ขึ้นรถ","Lead time รับเข้า-ขึ้นรถ (วัน)","Lead time รวม (วัน)"];
+  const gh=["ชื่อ","รับเข้า (บิล)","ขึ้นรถ (บิล)","ส่งสำเร็จ (บิล)","On-time","ส่งช้า","ขึ้นรถทันเวลา","ส่งสำเร็จของที่ขึ้นรถ","Lead time รับเข้า-ขึ้นรถ (วัน)","Lead time รวม (วัน)"];
   const grp=arr=>[gh].concat(arr.map(r=>[r.name,r.received,r.shipped,r.delivered,P(r.onTimePct),P(r.latePct),P(r.loadOnTimePct),P(r.deliveredOfShippedPct),N(r.leadWh),N(r.leadTotal)]));
   const gw=[34,14,14,14,10,10,14,20,24,18];
   X.utils.book_append_sheet(wb,sheet(grp(k.byBranch),[4,5,6,7],gw),"แยกตามสาขา");
