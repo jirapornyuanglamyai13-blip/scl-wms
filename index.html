@@ -257,6 +257,11 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
       <label class="f" style="width:170px">ถึง<input id="kpi-to" type="date"></label>
       <button class="btn primary" id="kpi-run" type="button">ดึง KPI</button>
     </div>
+    <div class="panel row">
+      <label class="f" style="flex:1 1 320px">ส่งอีเมลรายงานถึง<input id="kpi-mail-to" type="text" inputmode="email" placeholder="อีเมลผู้รับ ถ้าหลายคนคั่นด้วยเครื่องหมาย ,"></label>
+      <label style="display:flex;gap:6px;align-items:center;font-size:14px;color:var(--muted);padding-bottom:10px"><input id="kpi-mail-att" type="checkbox" checked style="width:auto">แนบไฟล์ Excel</label>
+      <button class="btn" id="kpi-mail" type="button" disabled>ส่งอีเมลรายงาน</button>
+    </div>
     <div id="kpi-msg" hidden></div>
     <div id="kpi-out" class="stack" hidden></div>
   </section>
@@ -584,7 +589,7 @@ async function runKpi(){const a=$("kpi-from").value,b=$("kpi-to").value;
   if(!a||!b||a>b){note($("kpi-msg"),"เลือกช่วงวันที่ให้ถูกต้อง (วันเริ่มต้องไม่เกินวันสิ้นสุด)","err");return}
   note($("kpi-msg"),"กำลังคำนวณ KPI...");$("kpi-run").disabled=true;
   try{const res=await Promise.all([api("apiKpi",a,b,$("kpi-cust").value),api("apiList")]);kpiData=res[0];items=res[1];fillKpiCust();
-    note($("kpi-msg"),"");renderKpi(kpiData);$("kpi-csv").disabled=false}
+    note($("kpi-msg"),"");renderKpi(kpiData);$("kpi-csv").disabled=false;$("kpi-mail").disabled=false}
   catch(err){note($("kpi-msg"),"ดึง KPI ไม่สำเร็จ: "+err.message,"err")}finally{$("kpi-run").disabled=false}}
 function renderKpi(k){const t=k.total,out=$("kpi-out");out.hidden=false;
   const card=(label,big,sub,warn)=>`<div class="kcard${warn?" warn":""}"><small>${label}</small><strong>${big}</strong><span>${sub||""}</span></div>`;
@@ -653,6 +658,16 @@ $("kpi-csv").addEventListener("click",async()=>{if(!kpiData)return;const btn=$("
     const nm=(k.customer||"ทุกลูกค้า").replace(/[^0-9A-Za-zก-๙]+/g,"_").slice(0,40);
     XLSX.writeFile(wb,`SCL_KPI_${nm}_${k.from}_${k.to}.xlsx`);toast("ดาวน์โหลดไฟล์ Excel แล้ว")}
   catch(err){note($("kpi-msg"),"สร้างไฟล์ Excel ไม่สำเร็จ: "+err.message,"err")}finally{btn.disabled=false}});
+$("kpi-mail-to").value=load("scl_kpi_mail")||"";
+$("kpi-mail").addEventListener("click",async()=>{if(!kpiData)return;const k=kpiData,to=$("kpi-mail-to").value.trim();
+  if(!to){note($("kpi-msg"),"กรอกอีเมลผู้รับก่อน","err");$("kpi-mail-to").focus();return}
+  if(!confirm("ส่งรายงาน KPI "+(k.customer||"ทุกลูกค้า")+" ("+fmtD(k.from)+" ถึง "+fmtD(k.to)+") ไปที่ "+to+" ยืนยันการส่ง?"))return;
+  const btn=$("kpi-mail");btn.disabled=true;note($("kpi-msg"),"กำลังส่งอีเมล...");
+  try{let b64="";if($("kpi-mail-att").checked){await loadXlsx();b64=XLSX.write(kpiWorkbook(k),{type:"base64",bookType:"xlsx"})}
+    const nm=(k.customer||"ทุกลูกค้า").replace(/[^0-9A-Za-zก-๙]+/g,"_").slice(0,40);
+    const r=await api("apiKpiEmail",k.from,k.to,k.customer||"",to,b64,`SCL_KPI_${nm}_${k.from}_${k.to}.xlsx`,NAME);
+    store("scl_kpi_mail",to);note($("kpi-msg"),`ส่งอีเมลรายงานแล้ว (${r.sent} ผู้รับ)`,"ok")}
+  catch(err){note($("kpi-msg"),"ส่งอีเมลไม่สำเร็จ: "+err.message,"err")}finally{btn.disabled=false}});
 $("q").addEventListener("input",renderList);$("q-date").addEventListener("input",renderList);
 $("tbody").addEventListener("click",e=>{const tr=e.target.closest("tr");if(!tr)return;showTab("scan");setMode("view");lookup(tr.dataset.code)});
 </script>
