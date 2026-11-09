@@ -125,6 +125,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
   </div>
 </header>
 
+<div class="wrap"><button type="button" id="stuck-bar" class="notice err" style="display:block;width:100%;margin-top:12px;text-align:left;border:0;font:inherit;cursor:pointer" hidden></button></div>
 <main class="wrap">
   <!-- SCAN -->
   <section id="view-scan" class="stack">
@@ -221,12 +222,12 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
     </div>
     <div class="counts" id="counts"></div>
     <div class="row">
-      <label class="f" style="flex:1 1 240px">ค้นหา<input id="q" placeholder="รหัส, ลูกค้า, เลขบิล, ร้านค้า, ทะเบียนรถ"></label>
+      <label class="f" style="flex:1 1 240px">ค้นหา<input id="q" placeholder="รหัส, ลูกค้า, เลขบิล, ร้านค้า, เลขเที่ยว"></label>
       <label class="f" style="width:170px">วันที่ออกรถ<input id="q-date" type="date"></label>
     </div>
     <div class="tablebox">
       <table>
-        <thead><tr><th>รหัส</th><th>สถานะ</th><th>ลูกค้า</th><th>เลขบิล</th><th>ร้านค้า</th><th>จำนวน</th><th>รับเข้า</th><th>รถ</th><th>ออกรถ</th><th>ถึง</th><th>นัดส่ง</th><th>ส่งสำเร็จ</th></tr></thead>
+        <thead><tr><th>รหัส</th><th>สถานะ</th><th>ลูกค้า</th><th>เลขบิล</th><th>ร้านค้า</th><th>จำนวน</th><th>รับเข้า</th><th>เที่ยว</th><th>ออกรถ</th><th>ถึง</th><th>นัดส่ง</th><th>ส่งสำเร็จ</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
       <div id="list-empty" class="empty">กำลังโหลด...</div>
@@ -275,7 +276,8 @@ $("gate-form").addEventListener("submit",async e=>{e.preventDefault();PIN=$("g-p
   catch(err){note($("g-msg"),err.message,"err")}finally{$("g-btn").disabled=false}});
 function enter(){$("gate").hidden=true;$("who").innerHTML=`${esc(NAME)}<button type="button" id="logout">ออก</button>`;
   $("logout").onclick=()=>{store("scl_pin",null);location.reload()};
-  if(START_CODE&&CODE_RE.test(START_CODE)){setMode("view");lookup(START_CODE)}}
+  if(START_CODE&&CODE_RE.test(START_CODE)){setMode("view");lookup(START_CODE)}
+  api("apiList").then(l=>{items=l;showStuck()}).catch(()=>{})}
 (async()=>{const p=load("scl_pin"),n=load("scl_name");if(p&&n){PIN=p;NAME=n;try{await api("apiCheck");enter()}catch(e){PIN=""}}})();
 
 /* ---------- tabs ---------- */
@@ -286,7 +288,7 @@ document.querySelector("nav").addEventListener("click",e=>{const b=e.target.clos
 /* ---------- modes ---------- */
 const BATCH_FIELDS={
   1:[["b-date","วันที่รับเข้า","date",today]],
-  2:[["b-truck","ทะเบียน / รหัสรถ","text"],["b-ttype","ประเภทรถ","select"],["b-ship","วันที่ออกรถ","date",today],["b-driver","คนขับ","text"]],
+  2:[["b-trip","เลขเที่ยว","text"],["b-ttype","ประเภทรถ","select"],["b-ship","วันที่ออกรถ","date",today],["b-driver","คนขับ","text"]],
   3:[["b-date","วันที่ถึงปลายทาง","date",today]],
   4:[["b-date","วันที่ส่งสำเร็จ","date",today],["b-recv","ผู้รับสินค้า (ถ้ามี)","text"]]
 };
@@ -383,7 +385,7 @@ function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
       <div><dt>สาขา / จุดกระจาย</dt><dd>${esc(it.branch||"-")}</dd></div>
       <div><dt>จำนวน</dt><dd>${esc(it.qty||"-")} ${esc(it.unit)}</dd></div>
       <div><dt>สินค้า</dt><dd>${esc(it.desc||"-")}</dd></div>
-      <div><dt>รถ</dt><dd>${esc(it.truck||"-")} ${it.truckType?"("+esc(it.truckType)+")":""}</dd></div>
+      <div><dt>เลขเที่ยว</dt><dd>${esc(it.trip||"-")} ${it.truckType?"("+esc(it.truckType)+")":""}</dd></div>
       <div><dt>คนขับ</dt><dd>${esc(it.driver||"-")}</dd></div>
       <div><dt>วันนัดส่ง</dt><dd>${fmtD(it.planDate)}</dd></div>
       ${it.receiver?`<div><dt>ผู้รับสินค้า</dt><dd>${esc(it.receiver)}</dd></div>`:""}
@@ -414,17 +416,17 @@ function bindPhoto(code,it){const box=$("item-view"),holder=box.querySelector(".
 
 function nextForm(k,it){const f={
   1:`<label class="f">วันที่รับเข้า<input id="n-date" type="date" value="${today()}"></label><label class="f">จำนวนที่รับจริง<input id="n-qty" type="number" step="any" value="${esc(it.qty)}"></label>`,
-  2:`<label class="f">ทะเบียน / รหัสรถ<input id="n-truck" value="${esc(it.truck)}"></label><label class="f">ประเภทรถ<select id="n-ttype">${TRUCK_TYPES.map(t=>`<option ${t===it.truckType?"selected":""}>${t}</option>`).join("")}</select></label><label class="f">วันที่ออกรถ<input id="n-date" type="date" value="${today()}"></label><label class="f">คนขับ<input id="n-driver" value="${esc(it.driver)}"></label>`,
+  2:`<label class="f">เลขเที่ยว<input id="n-trip" value="${esc(it.trip)}"></label><label class="f">ประเภทรถ<select id="n-ttype">${TRUCK_TYPES.map(t=>`<option ${t===it.truckType?"selected":""}>${t}</option>`).join("")}</select></label><label class="f">วันที่ออกรถ<input id="n-date" type="date" value="${today()}"></label><label class="f">คนขับ<input id="n-driver" value="${esc(it.driver)}"></label>`,
   3:`<label class="f">วันที่ถึงปลายทาง<input id="n-date" type="date" value="${today()}"></label>`,
   4:`<label class="f">วันที่ส่งสำเร็จ<input id="n-date" type="date" value="${today()}"></label><label class="f">ผู้รับสินค้า<input id="n-recv"></label>`}[k];
   return `<form class="next" id="next-form"><h3>ขั้นตอนถัดไป: ${ST[k]}</h3><div class="grid">${f}</div><div class="row" style="margin-top:12px"><button class="btn primary big" type="submit" style="flex:1">บันทึก "${ST[k]}"</button></div></form>`}
 function stepPatch(k,v){k=+k;
   if(k===1){const p={status:ST[1],receivedDate:v.date};if(v.qty!=null&&v.qty!=="")p.qty=v.qty;return p}
-  if(k===2){if(!v.truck||!v.truck.trim())throw new Error("กรอกทะเบียนรถก่อน");return {status:ST[2],truck:v.truck.trim().toUpperCase(),truckType:v.ttype,shipDate:v.date,driver:(v.driver||"").trim()}}
+  if(k===2){if(!v.trip||!v.trip.trim())throw new Error("กรอกเลขเที่ยวก่อน");return {status:ST[2],trip:v.trip.trim().toUpperCase(),truckType:v.ttype,shipDate:v.date,driver:(v.driver||"").trim()}}
   if(k===3)return {status:ST[3],arrivedDate:v.date};
   if(k===4){const p={status:ST[4],deliveredDate:v.date};if(v.recv)p.receiver=v.recv.trim();return p}}
 function bindNext(code,k){$("next-form").addEventListener("submit",async e=>{e.preventDefault();const g=id=>$(id)?$(id).value:undefined;const btn=e.target.querySelector("button");btn.disabled=true;
-  try{await api("apiSave",code,stepPatch(k,{date:g("n-date")||today(),qty:g("n-qty"),truck:g("n-truck"),ttype:g("n-ttype"),driver:g("n-driver"),recv:g("n-recv")}),ST[k],NAME,true);
+  try{await api("apiSave",code,stepPatch(k,{date:g("n-date")||today(),qty:g("n-qty"),trip:g("n-trip"),ttype:g("n-ttype"),driver:g("n-driver"),recv:g("n-recv")}),ST[k],NAME,true);
     toast(`${code} → ${ST[k]}`);await lookup(code)}catch(err){btn.disabled=false;toast(err.message)}})}
 
 function editForm(it,isNew){return `<form id="edit-form" class="stack" style="margin-top:12px"><div class="grid">
@@ -439,7 +441,7 @@ function editForm(it,isNew){return `<form id="edit-form" class="stack" style="ma
     ${isNew?`<label class="f">วันที่รับเข้า<input id="e-recvdate" type="date" value="${today()}"></label>`:`
     <label class="f">สถานะ<select id="e-status">${ST.map(s=>`<option ${s===it.status?"selected":""}>${s}</option>`).join("")}</select></label>
     <label class="f">วันที่รับเข้า<input id="e-recvdate" type="date" value="${esc(it.receivedDate)}"></label>
-    <label class="f">ทะเบียนรถ<input id="e-truck" value="${esc(it.truck)}"></label>
+    <label class="f">เลขเที่ยว<input id="e-trip" value="${esc(it.trip)}"></label>
     <label class="f">ประเภทรถ<select id="e-ttype"><option value="">-</option>${TRUCK_TYPES.map(t=>`<option ${t===it.truckType?"selected":""}>${t}</option>`).join("")}</select></label>
     <label class="f">คนขับ<input id="e-driver" value="${esc(it.driver)}"></label>
     <label class="f">วันที่ออกรถ<input id="e-ship" type="date" value="${esc(it.shipDate)}"></label>
@@ -452,7 +454,7 @@ function bindEdit(code,isNew,it){$("edit-form").addEventListener("submit",async 
   const p={customer:g("e-customer"),billNo:g("e-bill"),store:g("e-store"),branch:g("e-branch"),qty:g("e-qty"),unit:g("e-unit"),planDate:g("e-plan"),desc:g("e-desc"),note:g("e-note"),receivedDate:g("e-recvdate")};
   let action="แก้ไขข้อมูล";
   if(isNew){p.status=ST[1];action=ST[1];if(!p.receivedDate)p.receivedDate=today()}
-  else{Object.assign(p,{status:g("e-status"),truck:g("e-truck").toUpperCase(),truckType:g("e-ttype"),driver:g("e-driver"),shipDate:g("e-ship"),arrivedDate:g("e-arr"),deliveredDate:g("e-del"),receiver:g("e-recv")})}
+  else{Object.assign(p,{status:g("e-status"),trip:g("e-trip").toUpperCase(),truckType:g("e-ttype"),driver:g("e-driver"),shipDate:g("e-ship"),arrivedDate:g("e-arr"),deliveredDate:g("e-del"),receiver:g("e-recv")})}
   const btn=e.target.querySelector("button[type=submit]");btn.disabled=true;
   try{await api("apiSave",code,p,action,NAME,false);toast("บันทึกแล้ว");await lookup(code)}catch(err){btn.disabled=false;toast(err.message)}})}
 
@@ -462,10 +464,10 @@ async function batchApply(code){const li=document.createElement("li");$("batch-l
   li.innerHTML=`<span class="code">${esc(code)}</span><span>กำลังบันทึก...</span>`;
   try{if(!CODE_RE.test(code))throw new Error("ไม่ใช่ป้าย SCL");
     const g=id=>$(id)?$(id).value:undefined;
-    const p=stepPatch(mode,{date:g("b-date")||g("b-ship")||today(),truck:g("b-truck"),ttype:g("b-ttype"),driver:g("b-driver"),recv:g("b-recv")});
+    const p=stepPatch(mode,{date:g("b-date")||g("b-ship")||today(),trip:g("b-trip"),ttype:g("b-ttype"),driver:g("b-driver"),recv:g("b-recv")});
     const r=await api("apiSave",code,p,ST[+mode],NAME,mode!=="1");
     const warn=si(r.prev)>=+mode?` (เดิม: ${r.prev})`:"";
-    li.innerHTML=`<span class="code">${esc(code)}</span>${pill(ST[+mode])}<span>${esc((r.item.store||"ป้ายเปล่า")+(p.truck?" · "+p.truck:"")+warn)}</span>`;
+    li.innerHTML=`<span class="code">${esc(code)}</span>${pill(ST[+mode])}<span>${esc((r.item.store||"ป้ายเปล่า")+(p.trip?" · เที่ยว "+p.trip:"")+warn)}</span>`;
     beep(true);showResult(true,li.innerHTML)}
   catch(err){li.className="err";li.innerHTML=`<span class="code">${esc(code)}</span><span>${esc(err.message)}</span>`;beep(false);showResult(false,li.innerHTML)}
   batchN++;$("batch-count").textContent=`${batchN} รายการ`}
@@ -509,13 +511,24 @@ async function refreshList(){$("list-empty").hidden=false;$("list-empty").textCo
   catch(err){$("list-empty").textContent="โหลดไม่สำเร็จ: "+err.message}}
 $("refresh-btn").addEventListener("click",refreshList);
 function filtered(){const q=$("q").value.trim().toLowerCase(),qd=$("q-date").value;
-  return items.filter(it=>(filterStatus<0||si(it.status)===filterStatus)&&(!qd||it.shipDate===qd)&&(!q||[it.code,it.customer,it.billNo,it.store,it.truck,it.branch,it.desc].some(v=>String(v||"").toLowerCase().includes(q))))}
+  return items.filter(it=>(filterStatus===-2?isStuck(it):(filterStatus<0||si(it.status)===filterStatus))&&(!qd||it.shipDate===qd)&&(!q||[it.code,it.customer,it.billNo,it.store,it.trip,it.branch,it.desc].some(v=>String(v||"").toLowerCase().includes(q))))}
 function renderList(){const c=[0,0,0,0,0];for(const it of items)c[si(it.status)]++;
-  $("counts").innerHTML=`<button data-s="-1" aria-pressed="${filterStatus<0}"><small>ทั้งหมด</small><strong>${items.length}</strong></button>`+ST.map((s,k)=>`<button data-s="${k}" aria-pressed="${filterStatus===k}"><small>${s}</small><strong>${c[k]}</strong></button>`).join("");
+  const nStuck=items.filter(isStuck).length;
+  $("counts").innerHTML=`<button data-s="-1" aria-pressed="${filterStatus===-1}"><small>ทั้งหมด</small><strong>${items.length}</strong></button>`+ST.map((s,k)=>`<button data-s="${k}" aria-pressed="${filterStatus===k}"><small>${s}</small><strong>${c[k]}</strong></button>`).join("")+
+    `<button data-s="-2" aria-pressed="${filterStatus===-2}" style="color:var(--danger)"><small>ค้างโกดังเกิน ${STUCK_DAYS} วัน</small><strong>${nStuck}</strong></button>`;
+  showStuck();
   const rows=filtered();
-  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td class="code">${esc(it.code)}</td><td>${pill(it.status)}</td><td>${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td>${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}</td><td>${esc(it.truck)}${it.truckType?" · "+esc(it.truckType):""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}</td><td>${fmtD(it.deliveredDate)}</td></tr>`).join("");
+  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td class="code">${esc(it.code)}</td><td>${pill(it.status)}</td><td>${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td>${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}${isStuck(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ค้าง ${daysSince(it.receivedDate||it.createdAt)} วัน</span>`:""}</td><td>${esc(it.trip)}${it.truckType?" · "+esc(it.truckType):""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}</td><td>${fmtD(it.deliveredDate)}</td></tr>`).join("");
   $("list-empty").hidden=rows.length>0;$("list-empty").textContent=items.length?"ไม่พบรายการตามเงื่อนไข":"ยังไม่มีสินค้า เริ่มจากแท็บ สร้างป้าย QR"}
 $("counts").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;filterStatus=+b.dataset.s;renderList()});
+/* ---------- stuck in warehouse alert ---------- */
+const STUCK_DAYS=1;
+function daysSince(d){const s=String(d||"").slice(0,10);if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s))return 0;
+  const a=new Date(s+"T00:00:00"),b=new Date(today()+"T00:00:00");return Math.round((b-a)/86400000)}
+function isStuck(it){return it.status===ST[1]&&daysSince(it.receivedDate||it.createdAt)>STUCK_DAYS}
+function showStuck(){const n=items.filter(isStuck).length,bar=$("stuck-bar");bar.hidden=!n;
+  if(n)bar.textContent=`แจ้งเตือน: สินค้าค้างโกดังยังไม่ขึ้นรถเกิน ${STUCK_DAYS} วัน ${n} รายการ (กดเพื่อดูรายการ)`}
+$("stuck-bar").addEventListener("click",()=>{filterStatus=-2;showTab("list")});
 $("q").addEventListener("input",renderList);$("q-date").addEventListener("input",renderList);
 $("tbody").addEventListener("click",e=>{const tr=e.target.closest("tr");if(!tr)return;showTab("scan");setMode("view");lookup(tr.dataset.code)});
 </script>
