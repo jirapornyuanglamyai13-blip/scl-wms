@@ -245,9 +245,10 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
   <section id="view-kpi" class="stack" hidden>
     <div class="card-head">
       <div><h2>สรุป KPI</h2><p class="sub" style="margin:0">เลือกช่วงเวลา แล้วกดดึง KPI · หน่วยนับเป็นกล่อง</p></div>
-      <button class="btn" id="kpi-csv" type="button" disabled>ดาวน์โหลด CSV</button>
+      <button class="btn" id="kpi-csv" type="button" disabled>ดาวน์โหลด Excel</button>
     </div>
     <div class="panel row">
+      <label class="f" style="flex:1 1 240px">ลูกค้า<select id="kpi-cust"><option value="">ทุกลูกค้า</option></select></label>
       <label class="f" style="width:190px">ช่วงเวลา<select id="kpi-period">
         <option value="tw">สัปดาห์นี้</option><option value="lw">สัปดาห์ที่แล้ว</option>
         <option value="tm" selected>เดือนนี้</option><option value="lm">เดือนที่แล้ว</option><option value="custom">กำหนดเอง</option>
@@ -308,7 +309,7 @@ function enter(){$("gate").hidden=true;$("who").innerHTML=`${esc(NAME)}<button t
 
 /* ---------- tabs ---------- */
 function showTab(t){for(const b of document.querySelectorAll("nav button"))b.setAttribute("aria-selected",b.dataset.tab===t);
-  for(const v of ["scan","labels","list","kpi"])$("view-"+v).hidden=v!==t;if(t!=="scan")stopCam();if(t==="list")refreshList();if(t==="kpi"&&!kpiData)runKpi()}
+  for(const v of ["scan","labels","list","kpi"])$("view-"+v).hidden=v!==t;if(t!=="scan")stopCam();if(t==="list")refreshList();if(t==="kpi"){fillKpiCust();if(!kpiData)runKpi()}}
 document.querySelector("nav").addEventListener("click",e=>{const b=e.target.closest("button");if(b)showTab(b.dataset.tab)});
 
 /* ---------- modes ---------- */
@@ -582,32 +583,76 @@ const kv=(x,u)=>x==null?"-":x+(u||"");
 async function runKpi(){const a=$("kpi-from").value,b=$("kpi-to").value;
   if(!a||!b||a>b){note($("kpi-msg"),"เลือกช่วงวันที่ให้ถูกต้อง (วันเริ่มต้องไม่เกินวันสิ้นสุด)","err");return}
   note($("kpi-msg"),"กำลังคำนวณ KPI...");$("kpi-run").disabled=true;
-  try{kpiData=await api("apiKpi",a,b);note($("kpi-msg"),"");renderKpi(kpiData);$("kpi-csv").disabled=false}
+  try{const res=await Promise.all([api("apiKpi",a,b,$("kpi-cust").value),api("apiList")]);kpiData=res[0];items=res[1];fillKpiCust();
+    note($("kpi-msg"),"");renderKpi(kpiData);$("kpi-csv").disabled=false}
   catch(err){note($("kpi-msg"),"ดึง KPI ไม่สำเร็จ: "+err.message,"err")}finally{$("kpi-run").disabled=false}}
 function renderKpi(k){const t=k.total,out=$("kpi-out");out.hidden=false;
   const card=(label,big,sub,warn)=>`<div class="kcard${warn?" warn":""}"><small>${label}</small><strong>${big}</strong><span>${sub||""}</span></div>`;
-  const tbl=(title,arr)=>!arr.length?"":`<div><h2 style="font-size:16px">${title}</h2><div class="tablebox"><table class="ktable"><thead><tr><th>${title.includes("ลูกค้า")?"ลูกค้า":"สาขา / จุดกระจาย"}</th><th>รับเข้า</th><th>ขึ้นรถ</th><th>ส่งสำเร็จ</th><th>On-time</th><th>Lead time รวม</th><th>ขึ้นรถช้า</th></tr></thead><tbody>`+
-    arr.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.received}</td><td>${r.shipped}</td><td>${r.delivered}</td><td>${r.onTimePct==null?"-":r.onTimePct+"%"}</td><td>${kv(r.leadTotal," วัน")}</td><td>${r.slowLoad}</td></tr>`).join("")+`</tbody></table></div></div>`;
-  out.innerHTML=`<p class="sub" style="margin:0">ช่วงวันที่ ${fmtD(k.from)} ถึง ${fmtD(k.to)} · คำนวณเมื่อ ${esc(k.generatedAt)}</p>
+  const tbl=(title,arr)=>!arr.length?"":`<div><h2 style="font-size:16px">${title}</h2><div class="tablebox"><table class="ktable"><thead><tr><th>${title.includes("ลูกค้า")?"ลูกค้า":"สาขา / จุดกระจาย"}</th><th>รับเข้า</th><th>ขึ้นรถ</th><th>ส่งสำเร็จ</th><th>On-time %</th><th>ขึ้นรถทันเวลา %</th><th>ส่งสำเร็จของที่ขึ้นรถ %</th><th>Lead time รวม</th></tr></thead><tbody>`+
+    arr.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.received}</td><td>${r.shipped}</td><td>${r.delivered}</td><td>${kv(r.onTimePct,"%")}</td><td>${kv(r.loadOnTimePct,"%")}</td><td>${kv(r.deliveredOfShippedPct,"%")}</td><td>${kv(r.leadTotal," วัน")}</td></tr>`).join("")+`</tbody></table></div></div>`;
+  out.innerHTML=`<p class="sub" style="margin:0"><b>${esc(k.customer||"ทุกลูกค้า")}</b> · ช่วงวันที่ ${fmtD(k.from)} ถึง ${fmtD(k.to)} · คำนวณเมื่อ ${esc(k.generatedAt)}</p>
   <div class="kgrid">
     ${card("รับเข้าคลัง",t.received+" กล่อง",t.receivedBills+" บิล")}
     ${card("ขึ้นรถ",t.shipped+" กล่อง","")}
     ${card("ส่งสำเร็จ",t.delivered+" กล่อง",t.deliveredBills+" บิล")}
-    ${card("ส่งตรงวันนัด (On-time)",t.onTimePct==null?"-":t.onTimePct+"%",t.withPlan?`${t.onTime}/${t.withPlan} กล่อง · ส่งช้า ${t.late}`:"ไม่มีรายการที่ระบุวันนัด",t.late>0)}
+    ${card("ส่งตรงวันนัด (On-time)",kv(t.onTimePct,"%"),t.withPlan?`${t.onTime} จาก ${t.withPlan} กล่อง`:"ไม่มีรายการที่ระบุวันนัด")}
+    ${card("ส่งช้ากว่าวันนัด",kv(t.latePct,"%"),`${t.late} กล่อง`,t.late>0)}
+    ${card(`ขึ้นรถภายใน ${STUCK_DAYS} วันหลังรับเข้า`,kv(t.loadOnTimePct,"%"),t.loadN?`${t.loadN-t.slowLoad} จาก ${t.loadN} กล่อง`:"ยังไม่มีสินค้าขึ้นรถ")}
+    ${card(`ขึ้นรถช้ากว่า ${STUCK_DAYS} วัน`,kv(t.slowLoadPct,"%"),`${t.slowLoad} กล่อง`,t.slowLoad>0)}
+    ${card("ส่งสำเร็จแล้ว ของที่ขึ้นรถในช่วงนี้",kv(t.deliveredOfShippedPct,"%"),t.shipped?`${t.shippedDone} จาก ${t.shipped} กล่อง`:"ยังไม่มีสินค้าขึ้นรถ")}
     ${card("Lead time รับเข้า ถึง ขึ้นรถ",kv(t.leadWh," วัน"),"เฉลี่ย")}
     ${card("Lead time รับเข้า ถึง ส่งสำเร็จ",kv(t.leadTotal," วัน"),"เฉลี่ย")}
-    ${card(`ขึ้นรถช้ากว่า ${STUCK_DAYS} วัน`,t.slowLoad+" กล่อง","หลังรับเข้าคลัง",t.slowLoad>0)}
-    ${card(`ตอนนี้ค้างโกดังเกิน ${STUCK_DAYS} วัน`,k.stuckNow+" กล่อง","ณ เวลาที่ดึงข้อมูล",k.stuckNow>0)}
-    ${card("ตอนนี้เลยวันนัด ยังส่งไม่สำเร็จ",k.overdueNow+" กล่อง","ณ เวลาที่ดึงข้อมูล",k.overdueNow>0)}
+    ${card(`ตอนนี้ค้างโกดังเกิน ${STUCK_DAYS} วัน`,kv(k.stuckNowPct,"%"),`${k.stuckNow} จาก ${k.inWh} กล่องในคลัง`,k.stuckNow>0)}
+    ${card("ตอนนี้เลยวันนัด ยังส่งไม่สำเร็จ",kv(k.overdueNowPct,"%"),`${k.overdueNow} จาก ${k.openPlan} กล่องที่มีวันนัด`,k.overdueNow>0)}
   </div>`+tbl("แยกตามลูกค้า",k.byCustomer)+tbl("แยกตามสาขา / จุดกระจาย",k.byBranch)+
-  `<p class="sub" style="margin:0">On-time คิดจากกล่องที่ส่งสำเร็จในช่วงนี้และมีวันนัดส่ง · Lead time คิดเป็นวันตามวันที่ที่บันทึก</p>`}
-$("kpi-csv").addEventListener("click",()=>{if(!kpiData)return;const k=kpiData;
-  const q=v=>{const s=String(v==null?"":v);return /[",]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
-  const head=["กลุ่ม","ชื่อ","รับเข้า(กล่อง)","รับเข้า(บิล)","ขึ้นรถ","ส่งสำเร็จ(กล่อง)","ส่งสำเร็จ(บิล)","มีวันนัด","ส่งตรงนัด","ส่งช้า","On-time %","Lead time รับเข้า-ขึ้นรถ","Lead time รับเข้า-ส่งสำเร็จ","ขึ้นรถช้า"];
-  const line=(g,r)=>[g,r.name,r.received,r.receivedBills,r.shipped,r.delivered,r.deliveredBills,r.withPlan,r.onTime,r.late,r.onTimePct,r.leadWh,r.leadTotal,r.slowLoad].map(q).join(",");
-  const rows=[head.join(","),line("รวม",Object.assign({name:"ทั้งหมด"},k.total))].concat(k.byCustomer.map(r=>line("ลูกค้า",r)),k.byBranch.map(r=>line("สาขา",r)));
-  const blob=new Blob([String.fromCharCode(0xFEFF)+rows.join(String.fromCharCode(13,10))],{type:"text/csv;charset=utf-8"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`SCL_KPI_${k.from}_${k.to}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)});
+  `<p class="sub" style="margin:0">On-time % = กล่องที่ส่งสำเร็จไม่เกินวันนัด ÷ กล่องที่ส่งสำเร็จในช่วงนี้และมีวันนัด · ขึ้นรถทันเวลา % = ขึ้นรถภายใน ${STUCK_DAYS} วันหลังรับเข้า ÷ กล่องที่ขึ้นรถในช่วงนี้ · Lead time คิดเป็นวัน</p>`}
+const normC=s=>String(s||"").replace(/ +/g," ").trim();
+function fillKpiCust(){const sel=$("kpi-cust"),cur=sel.value;
+  const names=[...new Set(items.map(it=>normC(it.customer)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th"));
+  sel.innerHTML=`<option value="">ทุกลูกค้า</option>`+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("");
+  if(names.includes(cur))sel.value=cur}
+$("kpi-cust").addEventListener("change",runKpi);
+function loadXlsx(){return window.XLSX?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement("script");
+  s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=ok;s.onerror=()=>no(new Error("โหลดตัวสร้างไฟล์ Excel ไม่ได้ ตรวจสอบอินเทอร์เน็ต"));document.head.appendChild(s)})}
+function kpiWorkbook(k){const X=XLSX,wb=X.utils.book_new(),t=k.total,cust=k.customer||"ทุกลูกค้า";
+  const sheet=(aoa,pctCols,widths,pctRows)=>{const ws=X.utils.aoa_to_sheet(aoa);
+    for(const ref in ws){if(ref[0]==="!")continue;const c=X.utils.decode_cell(ref);
+      if(ws[ref].t==="n"&&((pctCols&&pctCols.includes(c.c)&&c.r>0)||(pctRows&&pctRows.has(c.r)&&c.c===1)))ws[ref].z="0.0%"}
+    ws["!cols"]=widths.map(w=>({wch:w}));return ws};
+  const P=x=>x==null?"-":x/100,N=x=>x==null?"-":x;
+  const pr=new Set();const rows=[["รายงาน KPI การจัดส่ง · SCL สหโชค โลจิสติกส์"],["ลูกค้า",cust],["ช่วงวันที่",`${fmtD(k.from)} ถึง ${fmtD(k.to)}`],["จัดทำเมื่อ",k.generatedAt],[],["ตัวชี้วัด","ค่า","รายละเอียด"]];
+  const add=(a,b,c,isPct)=>{if(isPct)pr.add(rows.length);rows.push([a,b,c])};
+  add("รับเข้าคลัง (กล่อง)",t.received,`${t.receivedBills} บิล`);
+  add("ขึ้นรถ (กล่อง)",t.shipped,"");
+  add("ส่งสำเร็จ (กล่อง)",t.delivered,`${t.deliveredBills} บิล`);
+  add("ส่งตรงวันนัด (On-time)",P(t.onTimePct),`${t.onTime} จาก ${t.withPlan} กล่องที่มีวันนัด`,1);
+  add("ส่งช้ากว่าวันนัด",P(t.latePct),`${t.late} กล่อง`,1);
+  add(`ขึ้นรถภายใน ${STUCK_DAYS} วันหลังรับเข้า`,P(t.loadOnTimePct),`${t.loadN-t.slowLoad} จาก ${t.loadN} กล่อง`,1);
+  add(`ขึ้นรถช้ากว่า ${STUCK_DAYS} วัน`,P(t.slowLoadPct),`${t.slowLoad} กล่อง`,1);
+  add("ส่งสำเร็จแล้ว ของที่ขึ้นรถในช่วงนี้",P(t.deliveredOfShippedPct),`${t.shippedDone} จาก ${t.shipped} กล่อง`,1);
+  add("Lead time รับเข้า ถึง ขึ้นรถ (วัน)",N(t.leadWh),"เฉลี่ย");
+  add("Lead time รับเข้า ถึง ส่งสำเร็จ (วัน)",N(t.leadTotal),"เฉลี่ย");
+  add(`ณ วันที่ดึงข้อมูล: ค้างโกดังเกิน ${STUCK_DAYS} วัน`,P(k.stuckNowPct),`${k.stuckNow} จาก ${k.inWh} กล่องในคลัง`,1);
+  add("ณ วันที่ดึงข้อมูล: เลยวันนัด ยังส่งไม่สำเร็จ",P(k.overdueNowPct),`${k.overdueNow} จาก ${k.openPlan} กล่องที่มีวันนัด`,1);
+  X.utils.book_append_sheet(wb,sheet(rows,null,[42,16,40],pr),"สรุป KPI");
+  const gh=["ชื่อ","รับเข้า (กล่อง)","ขึ้นรถ (กล่อง)","ส่งสำเร็จ (กล่อง)","On-time","ส่งช้า","ขึ้นรถทันเวลา","ส่งสำเร็จของที่ขึ้นรถ","Lead time รับเข้า-ขึ้นรถ (วัน)","Lead time รวม (วัน)"];
+  const grp=arr=>[gh].concat(arr.map(r=>[r.name,r.received,r.shipped,r.delivered,P(r.onTimePct),P(r.latePct),P(r.loadOnTimePct),P(r.deliveredOfShippedPct),N(r.leadWh),N(r.leadTotal)]));
+  const gw=[34,14,14,14,10,10,14,20,24,18];
+  X.utils.book_append_sheet(wb,sheet(grp(k.byBranch),[4,5,6,7],gw),"แยกตามสาขา");
+  if(!k.customer)X.utils.book_append_sheet(wb,sheet(grp(k.byCustomer),[4,5,6,7],gw),"แยกตามลูกค้า");
+  const inR=d=>d&&String(d).slice(0,10)>=k.from&&String(d).slice(0,10)<=k.to;
+  const its=items.filter(it=>(!k.customer||normC(it.customer)===k.customer)&&(inR(it.receivedDate)||inR(it.shipDate)||inR(it.deliveredDate)))
+    .sort((a,b)=>String(a.receivedDate).localeCompare(String(b.receivedDate)));
+  const res=it=>!it.deliveredDate||!it.planDate?"-":String(it.deliveredDate).slice(0,10)<=String(it.planDate).slice(0,10)?"ตรงวันนัด":"ส่งช้า";
+  const det=[["รหัส","สถานะ","ลูกค้า","เลขที่บิล","ร้านค้าปลายทาง","สาขา","จำนวน","หน่วย","วันที่รับเข้า","เลขเที่ยว","วันที่ออกรถ","วันที่ถึง","วันนัดส่ง","วันที่ส่งสำเร็จ","ผลการส่ง"]]
+    .concat(its.map(it=>[it.code,it.status,normC(it.customer),it.billNo,it.store,it.branch,(it.qty!==""&&!isNaN(+it.qty))?+it.qty:it.qty,it.unit,fmtD(it.receivedDate),it.trip,fmtD(it.shipDate),fmtD(it.arrivedDate),fmtD(it.planDate),fmtD(it.deliveredDate),res(it)]));
+  X.utils.book_append_sheet(wb,sheet(det,null,[18,12,30,14,28,14,8,8,13,12,13,13,13,14,11]),"รายการสินค้า");
+  return wb}
+$("kpi-csv").addEventListener("click",async()=>{if(!kpiData)return;const btn=$("kpi-csv");btn.disabled=true;
+  try{await loadXlsx();const k=kpiData,wb=kpiWorkbook(k);
+    const nm=(k.customer||"ทุกลูกค้า").replace(/[^0-9A-Za-zก-๙]+/g,"_").slice(0,40);
+    XLSX.writeFile(wb,`SCL_KPI_${nm}_${k.from}_${k.to}.xlsx`);toast("ดาวน์โหลดไฟล์ Excel แล้ว")}
+  catch(err){note($("kpi-msg"),"สร้างไฟล์ Excel ไม่สำเร็จ: "+err.message,"err")}finally{btn.disabled=false}});
 $("q").addEventListener("input",renderList);$("q-date").addEventListener("input",renderList);
 $("tbody").addEventListener("click",e=>{const tr=e.target.closest("tr");if(!tr)return;showTab("scan");setMode("view");lookup(tr.dataset.code)});
 </script>
