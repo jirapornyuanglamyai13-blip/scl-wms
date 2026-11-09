@@ -125,7 +125,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
   </div>
 </header>
 
-<div class="wrap"><button type="button" id="stuck-bar" class="notice err" style="display:block;width:100%;margin-top:12px;text-align:left;border:0;font:inherit;cursor:pointer" hidden></button></div>
+<div class="wrap"><button type="button" id="stuck-bar" class="notice err" style="display:block;width:100%;margin-top:12px;text-align:left;border:0;font:inherit;cursor:pointer" hidden></button><button type="button" id="due-bar" class="notice" style="display:block;width:100%;margin-top:8px;text-align:left;border:0;font:inherit;cursor:pointer;color:var(--s2);font-weight:bold" hidden></button></div>
 <main class="wrap">
   <!-- SCAN -->
   <section id="view-scan" class="stack">
@@ -386,7 +386,7 @@ function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
       <div><dt>จำนวน</dt><dd>${esc(it.qty||"-")} ${esc(it.unit)}</dd></div>
       <div><dt>สินค้า</dt><dd>${esc(it.desc||"-")}</dd></div>
       <div><dt>เลขเที่ยว</dt><dd>${esc(it.trip||"-")}</dd></div>
-      <div><dt>วันนัดส่ง</dt><dd>${fmtD(it.planDate)}</dd></div>
+      <div><dt>วันนัดส่ง</dt><dd>${fmtD(it.planDate)}${duePill(it)}</dd></div>
       ${it.receiver?`<div><dt>ผู้รับสินค้า</dt><dd>${esc(it.receiver)}</dd></div>`:""}
       ${it.note?`<div style="grid-column:1/-1"><dt>หมายเหตุ</dt><dd>${esc(it.note)}</dd></div>`:""}
     </dl>
@@ -508,14 +508,15 @@ async function refreshList(){$("list-empty").hidden=false;$("list-empty").textCo
   catch(err){$("list-empty").textContent="โหลดไม่สำเร็จ: "+err.message}}
 $("refresh-btn").addEventListener("click",refreshList);
 function filtered(){const q=$("q").value.trim().toLowerCase(),qd=$("q-date").value;
-  return items.filter(it=>(filterStatus===-2?isStuck(it):(filterStatus<0||si(it.status)===filterStatus))&&(!qd||it.shipDate===qd)&&(!q||[it.code,it.customer,it.billNo,it.store,it.trip,it.branch,it.desc].some(v=>String(v||"").toLowerCase().includes(q))))}
+  return items.filter(it=>(filterStatus===-3?isDueSoon(it):filterStatus===-2?isStuck(it):(filterStatus<0||si(it.status)===filterStatus))&&(!qd||it.shipDate===qd)&&(!q||[it.code,it.customer,it.billNo,it.store,it.trip,it.branch,it.desc].some(v=>String(v||"").toLowerCase().includes(q))))}
 function renderList(){const c=[0,0,0,0,0];for(const it of items)c[si(it.status)]++;
   const nStuck=items.filter(isStuck).length;
   $("counts").innerHTML=`<button data-s="-1" aria-pressed="${filterStatus===-1}"><small>ทั้งหมด</small><strong>${items.length}</strong></button>`+ST.map((s,k)=>`<button data-s="${k}" aria-pressed="${filterStatus===k}"><small>${s}</small><strong>${c[k]}</strong></button>`).join("")+
-    `<button data-s="-2" aria-pressed="${filterStatus===-2}" style="color:var(--danger)"><small>ค้างโกดังเกิน ${STUCK_DAYS} วัน</small><strong>${nStuck}</strong></button>`;
-  showStuck();
-  const rows=filtered();
-  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td class="code">${esc(it.code)}</td><td>${pill(it.status)}</td><td>${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td>${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}${isStuck(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ค้าง ${daysSince(it.receivedDate||it.createdAt)} วัน</span>`:""}</td><td>${esc(it.trip)}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}</td><td>${fmtD(it.deliveredDate)}</td></tr>`).join("");
+    `<button data-s="-2" aria-pressed="${filterStatus===-2}" style="color:var(--danger)"><small>ค้างโกดังเกิน ${STUCK_DAYS} วัน</small><strong>${nStuck}</strong></button>`+
+    `<button data-s="-3" aria-pressed="${filterStatus===-3}" style="color:var(--s2)"><small>ใกล้วันนัดส่ง</small><strong>${items.filter(isDueSoon).length}</strong></button>`;
+  showStuck();showDue();
+  const rows=filtered();if(filterStatus===-3)rows.sort((a,b)=>daysUntil(a.planDate)-daysUntil(b.planDate));
+  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td class="code">${esc(it.code)}</td><td>${pill(it.status)}</td><td>${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td>${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}${isStuck(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ค้าง ${daysSince(it.receivedDate||it.createdAt)} วัน</span>`:""}</td><td>${esc(it.trip)}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}${duePill(it)}</td><td>${fmtD(it.deliveredDate)}</td></tr>`).join("");
   $("list-empty").hidden=rows.length>0;$("list-empty").textContent=items.length?"ไม่พบรายการตามเงื่อนไข":"ยังไม่มีสินค้า เริ่มจากแท็บ สร้างป้าย QR"}
 $("counts").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;filterStatus=+b.dataset.s;renderList()});
 /* ---------- stuck in warehouse alert ---------- */
@@ -526,6 +527,17 @@ function isStuck(it){return it.status===ST[1]&&daysSince(it.receivedDate||it.cre
 function showStuck(){const n=items.filter(isStuck).length,bar=$("stuck-bar");bar.hidden=!n;
   if(n)bar.textContent=`แจ้งเตือน: สินค้าค้างโกดังยังไม่ขึ้นรถเกิน ${STUCK_DAYS} วัน ${n} รายการ (กดเพื่อดูรายการ)`}
 $("stuck-bar").addEventListener("click",()=>{filterStatus=-2;showTab("list")});
+/* ---------- due date (planDate) alert ---------- */
+const DUE_DAYS=2;
+function validD(d){return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(d||"").slice(0,10))}
+function daysUntil(d){return validD(d)?-daysSince(d):9999}
+function isDueSoon(it){return it.status===ST[1]&&validD(it.planDate)&&daysUntil(it.planDate)<=DUE_DAYS}
+function dueText(n){return n<0?`เลยนัด ${-n} วัน`:n===0?"นัดวันนี้":`อีก ${n} วัน`}
+function duePill(it){if(!isDueSoon(it))return "";const n=daysUntil(it.planDate);
+  return ` <span class="pill" style="color:${n<0?"var(--danger)":"var(--s2)"};background:${n<0?"var(--tdanger)":"var(--t2)"}">${dueText(n)}</span>`}
+function showDue(){const n=items.filter(isDueSoon).length,bar=$("due-bar");bar.hidden=!n;
+  if(n)bar.textContent=`ใกล้วันนัดส่ง: สินค้ายังไม่ขึ้นรถ และนัดส่งภายใน ${DUE_DAYS} วัน ${n} รายการ (กดเพื่อดูรายการ)`}
+$("due-bar").addEventListener("click",()=>{filterStatus=-3;showTab("list")});
 $("q").addEventListener("input",renderList);$("q-date").addEventListener("input",renderList);
 $("tbody").addEventListener("click",e=>{const tr=e.target.closest("tr");if(!tr)return;showTab("scan");setMode("view");lookup(tr.dataset.code)});
 </script>
