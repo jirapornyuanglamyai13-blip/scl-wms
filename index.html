@@ -89,6 +89,9 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
 .empty{color:var(--muted);text-align:center;padding:28px 8px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
 .hidden-file{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.photo-box{border:2px dashed var(--line);border-radius:10px;padding:14px;display:grid;gap:10px;background:var(--surface-2)}
+.photo-box img,.item-photo img{max-width:100%;border-radius:8px;display:block}
+.item-photo{margin-top:14px;display:grid;gap:8px;max-width:420px}
 .gate{position:fixed;inset:0;background:var(--bg);z-index:40;display:grid;place-items:center;padding:16px}
 .gate .panel{width:100%;max-width:380px}
 .who{font-size:13px;color:var(--muted)}
@@ -171,7 +174,18 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
         <button type="button" data-kind="full" aria-pressed="true">ป้ายพร้อมข้อมูลบิล</button>
         <button type="button" data-kind="blank" aria-pressed="false">ป้ายเปล่า</button>
       </div>
+      <div class="photo-box" id="l-photo-box">
+        <button type="button" class="btn primary" id="l-photo-btn">ถ่ายรูปบิล ให้ระบบกรอกข้อมูลให้</button>
+        <input type="file" id="l-photo-input" class="hidden-file" accept="image/*" capture="environment" tabindex="-1">
+        <div id="l-photo-msg" hidden></div>
+        <div id="l-photo-prev" class="row" style="align-items:center" hidden>
+          <img id="l-photo-img" alt="รูปบิลที่ถ่าย" style="width:140px">
+          <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="l-photo-attach" checked style="width:auto">แนบรูปนี้กับป้าย (ดูได้ตอนสแกน)</label>
+        </div>
+        <details id="l-ocr-wrap" hidden><summary>ข้อความที่อ่านได้จากรูป</summary><textarea id="l-ocr" rows="6" readonly></textarea></details>
+      </div>
       <div class="grid" id="label-detail">
+        <label class="f">ลูกค้า (เจ้าของสินค้า)<input id="l-customer" placeholder="เช่น บริษัทผู้ส่งสินค้า"></label>
         <label class="f">เลขที่บิล<input id="l-bill" required></label>
         <label class="f">ร้านค้าปลายทาง<input id="l-store" required></label>
         <label class="f">สาขา / จุดกระจาย<input id="l-branch"></label>
@@ -207,12 +221,12 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
     </div>
     <div class="counts" id="counts"></div>
     <div class="row">
-      <label class="f" style="flex:1 1 240px">ค้นหา<input id="q" placeholder="รหัส, เลขบิล, ร้านค้า, ทะเบียนรถ"></label>
+      <label class="f" style="flex:1 1 240px">ค้นหา<input id="q" placeholder="รหัส, ลูกค้า, เลขบิล, ร้านค้า, ทะเบียนรถ"></label>
       <label class="f" style="width:170px">วันที่ออกรถ<input id="q-date" type="date"></label>
     </div>
     <div class="tablebox">
       <table>
-        <thead><tr><th>รหัส</th><th>สถานะ</th><th>เลขบิล</th><th>ร้านค้า</th><th>จำนวน</th><th>รับเข้า</th><th>รถ</th><th>ออกรถ</th><th>ถึง</th><th>นัดส่ง</th><th>ส่งสำเร็จ</th></tr></thead>
+        <thead><tr><th>รหัส</th><th>สถานะ</th><th>ลูกค้า</th><th>เลขบิล</th><th>ร้านค้า</th><th>จำนวน</th><th>รับเข้า</th><th>รถ</th><th>ออกรถ</th><th>ถึง</th><th>นัดส่ง</th><th>ส่งสำเร็จ</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
       <div id="list-empty" class="empty">กำลังโหลด...</div>
@@ -363,6 +377,7 @@ function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
   box.innerHTML=`<div class="panel">
     <div class="card-head"><span class="code">${esc(code)}</span>${pill(it.status)}</div>
     <dl class="kv">
+      <div><dt>ลูกค้า (เจ้าของสินค้า)</dt><dd>${esc(it.customer||"-")}</dd></div>
       <div><dt>เลขที่บิล</dt><dd>${esc(it.billNo||"-")}</dd></div>
       <div><dt>ร้านค้าปลายทาง</dt><dd>${esc(it.store||"-")}</dd></div>
       <div><dt>สาขา / จุดกระจาย</dt><dd>${esc(it.branch||"-")}</dd></div>
@@ -378,9 +393,24 @@ function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
     ${i<4?nextForm(i+1,it):`<div class="notice ok" style="margin-top:16px">ส่งสินค้าสำเร็จแล้ว ${fmtD(it.deliveredDate)}</div>`}
     <details><summary>แก้ไขข้อมูล / เปลี่ยนสถานะ</summary>${editForm(it,false)}</details>
     <details><summary>ประวัติ (${log.length})</summary><ul class="hist">${log.map(x=>`<li><b>${esc(x.action)}</b> ${esc(x.detail)} · ${esc(x.at)} · ${esc(x.by)}</li>`).join("")||"<li>ยังไม่มีประวัติ</li>"}</ul></details>
+    <div class="item-photo"><div class="item-photo-img">${it.photo?"<span class=\"sub\">กำลังโหลดรูป...</span>":""}</div>
+      <div class="row"><button type="button" class="btn item-photo-btn">${it.photo?"ถ่ายรูปใหม่แทน":"ถ่ายรูปแนบกับป้ายนี้"}</button><input type="file" class="hidden-file item-photo-input" accept="image/*" capture="environment" tabindex="-1"></div></div>
     <div style="margin-top:14px"><a class="btn" target="_blank" rel="noopener" href="${esc(API_URL+"?codes="+code)}">พิมพ์ป้ายใบนี้ซ้ำ</a></div>
   </div>`;
-  if(i<4)bindNext(code,i+1);bindEdit(code,false,it)}
+  if(i<4)bindNext(code,i+1);bindEdit(code,false,it);bindPhoto(code,it)}
+
+/* ---------- photos ---------- */
+async function shrink(file,max,q){const url=URL.createObjectURL(file);
+  try{const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error("เปิดรูปไม่ได้"));i.src=url});
+    const k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)),c=document.createElement("canvas");
+    c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+    return c.toDataURL("image/jpeg",q)}finally{URL.revokeObjectURL(url)}}
+function bindPhoto(code,it){const box=$("item-view"),holder=box.querySelector(".item-photo-img"),inp=box.querySelector(".item-photo-input"),btn=box.querySelector(".item-photo-btn");
+  if(it.photo)api("apiPhoto",it.photo).then(d=>{if(holder.isConnected)holder.innerHTML='<img alt="รูปที่แนบกับป้าย '+esc(code)+'" src="'+d+'">'}).catch(()=>{if(holder.isConnected)holder.textContent="โหลดรูปไม่ได้"});
+  btn.addEventListener("click",()=>inp.click());
+  inp.addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;e.target.value="";btn.disabled=true;btn.textContent="กำลังอัปโหลดรูป...";
+    try{const d=await shrink(f,1600,.8);await api("apiAttachPhoto",code,d,NAME);toast("แนบรูปแล้ว");await lookup(code)}
+    catch(err){toast(err.message);btn.disabled=false;btn.textContent="ถ่ายรูปแนบกับป้ายนี้"}})}
 
 function nextForm(k,it){const f={
   1:`<label class="f">วันที่รับเข้า<input id="n-date" type="date" value="${today()}"></label><label class="f">จำนวนที่รับจริง<input id="n-qty" type="number" step="any" value="${esc(it.qty)}"></label>`,
@@ -398,6 +428,7 @@ function bindNext(code,k){$("next-form").addEventListener("submit",async e=>{e.p
     toast(`${code} → ${ST[k]}`);await lookup(code)}catch(err){btn.disabled=false;toast(err.message)}})}
 
 function editForm(it,isNew){return `<form id="edit-form" class="stack" style="margin-top:12px"><div class="grid">
+    <label class="f">ลูกค้า (เจ้าของสินค้า)<input id="e-customer" value="${esc(it.customer)}"></label>
     <label class="f">เลขที่บิล<input id="e-bill" value="${esc(it.billNo)}" ${isNew?"required":""}></label>
     <label class="f">ร้านค้าปลายทาง<input id="e-store" value="${esc(it.store)}" ${isNew?"required":""}></label>
     <label class="f">สาขา / จุดกระจาย<input id="e-branch" value="${esc(it.branch)}"></label>
@@ -418,7 +449,7 @@ function editForm(it,isNew){return `<form id="edit-form" class="stack" style="ma
     <label class="f wide">หมายเหตุ<textarea id="e-note">${esc(it.note)}</textarea></label>
   </div><div class="row"><button class="btn primary" type="submit">${isNew?"บันทึกรับเข้าคลัง":"บันทึกการแก้ไข"}</button></div></form>`}
 function bindEdit(code,isNew,it){$("edit-form").addEventListener("submit",async e=>{e.preventDefault();const g=id=>($(id)?$(id).value:"").trim();
-  const p={billNo:g("e-bill"),store:g("e-store"),branch:g("e-branch"),qty:g("e-qty"),unit:g("e-unit"),planDate:g("e-plan"),desc:g("e-desc"),note:g("e-note"),receivedDate:g("e-recvdate")};
+  const p={customer:g("e-customer"),billNo:g("e-bill"),store:g("e-store"),branch:g("e-branch"),qty:g("e-qty"),unit:g("e-unit"),planDate:g("e-plan"),desc:g("e-desc"),note:g("e-note"),receivedDate:g("e-recvdate")};
   let action="แก้ไขข้อมูล";
   if(isNew){p.status=ST[1];action=ST[1];if(!p.receivedDate)p.receivedDate=today()}
   else{Object.assign(p,{status:g("e-status"),truck:g("e-truck").toUpperCase(),truckType:g("e-ttype"),driver:g("e-driver"),shipDate:g("e-ship"),arrivedDate:g("e-arr"),deliveredDate:g("e-del"),receiver:g("e-recv")})}
@@ -445,13 +476,28 @@ $("label-kind").addEventListener("click",e=>{const b=e.target.closest("button");
   for(const x of $("label-kind").children)x.setAttribute("aria-pressed",x===b);$("label-detail").hidden=labelKind==="blank";
   $("l-bill").required=$("l-store").required=labelKind==="full"});
 $("label-form").addEventListener("submit",async e=>{e.preventDefault();const msg=$("label-msg");const n=Math.max(1,Math.min(200,parseInt($("l-count").value)||1));
-  const base=labelKind==="full"?{billNo:$("l-bill").value.trim(),store:$("l-store").value.trim(),branch:$("l-branch").value.trim(),planDate:$("l-plan").value,
+  const base=labelKind==="full"?{customer:$("l-customer").value.trim(),billNo:$("l-bill").value.trim(),store:$("l-store").value.trim(),branch:$("l-branch").value.trim(),planDate:$("l-plan").value,
     desc:$("l-desc").value.trim(),qty:$("l-qty").value,unit:$("l-unit").value}:{};
   if(labelKind==="full"&&$("l-recv").value==="1"){base.status=ST[1];base.receivedDate=today()}
+  if(billPhoto&&$("l-photo-attach").checked)base.photo=billPhoto;
   $("l-submit").disabled=true;note(msg,`กำลังสร้าง ${n} ป้าย...`);
   try{const r=await api("apiCreateLabels",base,n,NAME);lastBatch=r.batch;lastLabels=r.items;renderLabels();note(msg,`สร้าง ${n} ป้ายแล้ว (ชุด ${r.batch})`,"ok")}
   catch(err){note(msg,"สร้างไม่สำเร็จ: "+err.message,"err")}finally{$("l-submit").disabled=false}});
-function labelText(l){return l.billNo?`<div>บิล <b>${esc(l.billNo)}</b> · ${esc(l.seq)}</div><div><b>${esc(l.store)}</b></div><div>${esc(l.branch)}</div><div>${esc(l.qty)} ${esc(l.unit)} ${esc(l.desc)}</div>`:`<div>ป้ายเปล่า ${esc(l.seq)}</div>`}
+let billPhoto=null;
+$("l-photo-btn").addEventListener("click",()=>$("l-photo-input").click());
+$("l-photo-input").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;e.target.value="";const msg=$("l-photo-msg");
+  note(msg,"กำลังอ่านข้อมูลจากรูปบิล อาจใช้เวลา 5-20 วินาที...");$("l-photo-btn").disabled=true;
+  try{const d=await shrink(f,2000,.85);$("l-photo-img").src=d;$("l-photo-prev").hidden=false;
+    const r=await api("apiOcr",d,NAME);billPhoto=r.photoId;const g=r.guess||{};const got=[];
+    if(labelKind!=="full")$("label-kind").children[0].click();
+    if(g.customer){$("l-customer").value=g.customer;got.push("ลูกค้า")}
+    if(g.billNo){$("l-bill").value=g.billNo;got.push("เลขที่บิล")}
+    if(g.store){$("l-store").value=g.store;got.push("ร้านค้า")}
+    $("l-ocr").value=r.text||"";$("l-ocr-wrap").hidden=!r.text;
+    if(got.length)note(msg,"อ่านได้: "+got.join(", ")+(g.qty?" · จำนวนในบิล "+g.qty:"")+" ตรวจและแก้ให้ถูกก่อนกดสร้างป้าย","ok");
+    else note(msg,r.text?"อ่านข้อความได้ แต่หาช่องข้อมูลไม่เจอ ดูข้อความที่อ่านได้ด้านล่างแล้วกรอกเอง":"อ่านข้อความจากรูปไม่ได้ ลองถ่ายใหม่ให้บิลเต็มภาพ ชัด ไม่เอียง","err")}
+  catch(err){note(msg,"อ่านรูปไม่สำเร็จ: "+err.message,"err")}finally{$("l-photo-btn").disabled=false}});
+function labelText(l){return (l.customer?`<div>ลูกค้า <b>${esc(l.customer)}</b></div>`:"")+(l.billNo?`<div>บิล <b>${esc(l.billNo)}</b> · ${esc(l.seq)}</div><div><b>${esc(l.store)}</b></div><div>${esc(l.branch)}</div><div>${esc(l.qty)} ${esc(l.unit)} ${esc(l.desc)}</div>`:`<div>ป้ายเปล่า ${esc(l.seq)}</div>`)}
 function renderLabels(){$("label-out").hidden=false;$("label-out-title").textContent=`ป้ายที่สร้าง (${lastLabels.length})`;
   $("label-preview").innerHTML=lastLabels.map(l=>`<div class="lbl">${qrSvg(qrPayload(l.code))}<div class="t"><div class="code">${esc(l.code)}</div>${labelText(l)}</div></div>`).join("");updatePrint()}
 function updatePrint(){if(lastBatch)$("l-print").href=API_URL+"?print="+encodeURIComponent(lastBatch)+"&paper="+$("l-paper").value}
@@ -463,11 +509,11 @@ async function refreshList(){$("list-empty").hidden=false;$("list-empty").textCo
   catch(err){$("list-empty").textContent="โหลดไม่สำเร็จ: "+err.message}}
 $("refresh-btn").addEventListener("click",refreshList);
 function filtered(){const q=$("q").value.trim().toLowerCase(),qd=$("q-date").value;
-  return items.filter(it=>(filterStatus<0||si(it.status)===filterStatus)&&(!qd||it.shipDate===qd)&&(!q||[it.code,it.billNo,it.store,it.truck,it.branch,it.desc].some(v=>String(v||"").toLowerCase().includes(q))))}
+  return items.filter(it=>(filterStatus<0||si(it.status)===filterStatus)&&(!qd||it.shipDate===qd)&&(!q||[it.code,it.customer,it.billNo,it.store,it.truck,it.branch,it.desc].some(v=>String(v||"").toLowerCase().includes(q))))}
 function renderList(){const c=[0,0,0,0,0];for(const it of items)c[si(it.status)]++;
   $("counts").innerHTML=`<button data-s="-1" aria-pressed="${filterStatus<0}"><small>ทั้งหมด</small><strong>${items.length}</strong></button>`+ST.map((s,k)=>`<button data-s="${k}" aria-pressed="${filterStatus===k}"><small>${s}</small><strong>${c[k]}</strong></button>`).join("");
   const rows=filtered();
-  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td class="code">${esc(it.code)}</td><td>${pill(it.status)}</td><td>${esc(it.billNo)}</td><td>${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}</td><td>${esc(it.truck)}${it.truckType?" · "+esc(it.truckType):""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}</td><td>${fmtD(it.deliveredDate)}</td></tr>`).join("");
+  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td class="code">${esc(it.code)}</td><td>${pill(it.status)}</td><td>${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td>${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}</td><td>${esc(it.truck)}${it.truckType?" · "+esc(it.truckType):""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}</td><td>${fmtD(it.deliveredDate)}</td></tr>`).join("");
   $("list-empty").hidden=rows.length>0;$("list-empty").textContent=items.length?"ไม่พบรายการตามเงื่อนไข":"ยังไม่มีสินค้า เริ่มจากแท็บ สร้างป้าย QR"}
 $("counts").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;filterStatus=+b.dataset.s;renderList()});
 $("q").addEventListener("input",renderList);$("q-date").addEventListener("input",renderList);
