@@ -96,6 +96,12 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
 .gate .panel{width:100%;max-width:380px}
 .who{font-size:13px;color:var(--muted)}
 .who button{font:inherit;font-size:13px;background:none;border:0;color:var(--accent);cursor:pointer;padding:0 0 0 6px}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.kcard{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;min-width:0}
+.kcard small{display:block;color:var(--muted);font-size:12px}.kcard strong{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.kcard span{font-size:13px;color:var(--muted)}.kcard.warn strong{color:var(--danger)}
+.ktable tbody tr{cursor:default}
+.stack>*{min-width:0}
 [hidden]{display:none!important}
 @media (max-width:560px){.brand span{display:none}nav{width:100%}nav button{flex:1;padding:8px 4px}
   .track{grid-template-columns:1fr}.step{border-top:none;border-left:4px solid var(--line);padding:4px 10px}.step.done{border-left-color:var(--accent)}.step.now{border-left-color:var(--s2)}}
@@ -121,6 +127,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
       <button data-tab="scan" aria-selected="true">สแกน</button>
       <button data-tab="labels" aria-selected="false">สร้างป้าย QR</button>
       <button data-tab="list" aria-selected="false">รายการทั้งหมด</button>
+      <button data-tab="kpi" aria-selected="false">KPI</button>
     </nav>
   </div>
 </header>
@@ -233,6 +240,25 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
       <div id="list-empty" class="empty">กำลังโหลด...</div>
     </div>
   </section>
+
+  <!-- KPI -->
+  <section id="view-kpi" class="stack" hidden>
+    <div class="card-head">
+      <div><h2>สรุป KPI</h2><p class="sub" style="margin:0">เลือกช่วงเวลา แล้วกดดึง KPI · หน่วยนับเป็นกล่อง</p></div>
+      <button class="btn" id="kpi-csv" type="button" disabled>ดาวน์โหลด CSV</button>
+    </div>
+    <div class="panel row">
+      <label class="f" style="width:190px">ช่วงเวลา<select id="kpi-period">
+        <option value="tw">สัปดาห์นี้</option><option value="lw">สัปดาห์ที่แล้ว</option>
+        <option value="tm" selected>เดือนนี้</option><option value="lm">เดือนที่แล้ว</option><option value="custom">กำหนดเอง</option>
+      </select></label>
+      <label class="f" style="width:170px">ตั้งแต่<input id="kpi-from" type="date"></label>
+      <label class="f" style="width:170px">ถึง<input id="kpi-to" type="date"></label>
+      <button class="btn primary" id="kpi-run" type="button">ดึง KPI</button>
+    </div>
+    <div id="kpi-msg" hidden></div>
+    <div id="kpi-out" class="stack" hidden></div>
+  </section>
 </main>
 <div id="toast" class="toast" hidden></div>
 <canvas id="cv" hidden></canvas>
@@ -282,7 +308,7 @@ function enter(){$("gate").hidden=true;$("who").innerHTML=`${esc(NAME)}<button t
 
 /* ---------- tabs ---------- */
 function showTab(t){for(const b of document.querySelectorAll("nav button"))b.setAttribute("aria-selected",b.dataset.tab===t);
-  for(const v of ["scan","labels","list"])$("view-"+v).hidden=v!==t;if(t!=="scan")stopCam();if(t==="list")refreshList()}
+  for(const v of ["scan","labels","list","kpi"])$("view-"+v).hidden=v!==t;if(t!=="scan")stopCam();if(t==="list")refreshList();if(t==="kpi"&&!kpiData)runKpi()}
 document.querySelector("nav").addEventListener("click",e=>{const b=e.target.closest("button");if(b)showTab(b.dataset.tab)});
 
 /* ---------- modes ---------- */
@@ -538,6 +564,50 @@ function duePill(it){if(!isDueSoon(it))return "";const n=daysUntil(it.planDate);
 function showDue(){const n=items.filter(isDueSoon).length,bar=$("due-bar");bar.hidden=!n;
   if(n)bar.textContent=`ใกล้วันนัดส่ง: สินค้ายังไม่ขึ้นรถ และนัดส่งภายใน ${DUE_DAYS} วัน ${n} รายการ (กดเพื่อดูรายการ)`}
 $("due-bar").addEventListener("click",()=>{filterStatus=-3;showTab("list")});
+/* ---------- KPI (weekly / monthly) ---------- */
+let kpiData=null;
+const ymdL=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+function kpiRange(p){const t=new Date(today()+"T00:00:00"),dow=(t.getDay()+6)%7,y=t.getFullYear(),m=t.getMonth();
+  const add=n=>new Date(y,m,t.getDate()+n);
+  if(p==="tw")return [ymdL(add(-dow)),ymdL(t)];
+  if(p==="lw")return [ymdL(add(-dow-7)),ymdL(add(-dow-1))];
+  if(p==="lm")return [ymdL(new Date(y,m-1,1)),ymdL(new Date(y,m,0))];
+  return [ymdL(new Date(y,m,1)),ymdL(t)]}
+function setKpiRange(){const p=$("kpi-period").value;if(p==="custom")return;const r=kpiRange(p);$("kpi-from").value=r[0];$("kpi-to").value=r[1]}
+setKpiRange();
+$("kpi-period").addEventListener("change",setKpiRange);
+for(const id of ["kpi-from","kpi-to"])$(id).addEventListener("input",()=>{$("kpi-period").value="custom"});
+$("kpi-run").addEventListener("click",runKpi);
+const kv=(x,u)=>x==null?"-":x+(u||"");
+async function runKpi(){const a=$("kpi-from").value,b=$("kpi-to").value;
+  if(!a||!b||a>b){note($("kpi-msg"),"เลือกช่วงวันที่ให้ถูกต้อง (วันเริ่มต้องไม่เกินวันสิ้นสุด)","err");return}
+  note($("kpi-msg"),"กำลังคำนวณ KPI...");$("kpi-run").disabled=true;
+  try{kpiData=await api("apiKpi",a,b);note($("kpi-msg"),"");renderKpi(kpiData);$("kpi-csv").disabled=false}
+  catch(err){note($("kpi-msg"),"ดึง KPI ไม่สำเร็จ: "+err.message,"err")}finally{$("kpi-run").disabled=false}}
+function renderKpi(k){const t=k.total,out=$("kpi-out");out.hidden=false;
+  const card=(label,big,sub,warn)=>`<div class="kcard${warn?" warn":""}"><small>${label}</small><strong>${big}</strong><span>${sub||""}</span></div>`;
+  const tbl=(title,arr)=>!arr.length?"":`<div><h2 style="font-size:16px">${title}</h2><div class="tablebox"><table class="ktable"><thead><tr><th>${title.includes("ลูกค้า")?"ลูกค้า":"สาขา / จุดกระจาย"}</th><th>รับเข้า</th><th>ขึ้นรถ</th><th>ส่งสำเร็จ</th><th>On-time</th><th>Lead time รวม</th><th>ขึ้นรถช้า</th></tr></thead><tbody>`+
+    arr.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.received}</td><td>${r.shipped}</td><td>${r.delivered}</td><td>${r.onTimePct==null?"-":r.onTimePct+"%"}</td><td>${kv(r.leadTotal," วัน")}</td><td>${r.slowLoad}</td></tr>`).join("")+`</tbody></table></div></div>`;
+  out.innerHTML=`<p class="sub" style="margin:0">ช่วงวันที่ ${fmtD(k.from)} ถึง ${fmtD(k.to)} · คำนวณเมื่อ ${esc(k.generatedAt)}</p>
+  <div class="kgrid">
+    ${card("รับเข้าคลัง",t.received+" กล่อง",t.receivedBills+" บิล")}
+    ${card("ขึ้นรถ",t.shipped+" กล่อง","")}
+    ${card("ส่งสำเร็จ",t.delivered+" กล่อง",t.deliveredBills+" บิล")}
+    ${card("ส่งตรงวันนัด (On-time)",t.onTimePct==null?"-":t.onTimePct+"%",t.withPlan?`${t.onTime}/${t.withPlan} กล่อง · ส่งช้า ${t.late}`:"ไม่มีรายการที่ระบุวันนัด",t.late>0)}
+    ${card("Lead time รับเข้า ถึง ขึ้นรถ",kv(t.leadWh," วัน"),"เฉลี่ย")}
+    ${card("Lead time รับเข้า ถึง ส่งสำเร็จ",kv(t.leadTotal," วัน"),"เฉลี่ย")}
+    ${card(`ขึ้นรถช้ากว่า ${STUCK_DAYS} วัน`,t.slowLoad+" กล่อง","หลังรับเข้าคลัง",t.slowLoad>0)}
+    ${card(`ตอนนี้ค้างโกดังเกิน ${STUCK_DAYS} วัน`,k.stuckNow+" กล่อง","ณ เวลาที่ดึงข้อมูล",k.stuckNow>0)}
+    ${card("ตอนนี้เลยวันนัด ยังส่งไม่สำเร็จ",k.overdueNow+" กล่อง","ณ เวลาที่ดึงข้อมูล",k.overdueNow>0)}
+  </div>`+tbl("แยกตามลูกค้า",k.byCustomer)+tbl("แยกตามสาขา / จุดกระจาย",k.byBranch)+
+  `<p class="sub" style="margin:0">On-time คิดจากกล่องที่ส่งสำเร็จในช่วงนี้และมีวันนัดส่ง · Lead time คิดเป็นวันตามวันที่ที่บันทึก</p>`}
+$("kpi-csv").addEventListener("click",()=>{if(!kpiData)return;const k=kpiData;
+  const q=v=>{const s=String(v==null?"":v);return /[",]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+  const head=["กลุ่ม","ชื่อ","รับเข้า(กล่อง)","รับเข้า(บิล)","ขึ้นรถ","ส่งสำเร็จ(กล่อง)","ส่งสำเร็จ(บิล)","มีวันนัด","ส่งตรงนัด","ส่งช้า","On-time %","Lead time รับเข้า-ขึ้นรถ","Lead time รับเข้า-ส่งสำเร็จ","ขึ้นรถช้า"];
+  const line=(g,r)=>[g,r.name,r.received,r.receivedBills,r.shipped,r.delivered,r.deliveredBills,r.withPlan,r.onTime,r.late,r.onTimePct,r.leadWh,r.leadTotal,r.slowLoad].map(q).join(",");
+  const rows=[head.join(","),line("รวม",Object.assign({name:"ทั้งหมด"},k.total))].concat(k.byCustomer.map(r=>line("ลูกค้า",r)),k.byBranch.map(r=>line("สาขา",r)));
+  const blob=new Blob([String.fromCharCode(0xFEFF)+rows.join(String.fromCharCode(13,10))],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`SCL_KPI_${k.from}_${k.to}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)});
 $("q").addEventListener("input",renderList);$("q-date").addEventListener("input",renderList);
 $("tbody").addEventListener("click",e=>{const tr=e.target.closest("tr");if(!tr)return;showTab("scan");setMode("view");lookup(tr.dataset.code)});
 </script>
