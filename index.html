@@ -63,9 +63,9 @@ textarea{min-height:56px;resize:vertical}
 dl.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 16px;margin:14px 0 0}
 dl.kv div{min-width:0}dl.kv dt{font-size:12px;color:var(--muted)}dl.kv dd{margin:0;font-weight:500;overflow-wrap:anywhere}
 .track{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:16px}
-.step{padding:8px 8px 6px;border-top:4px solid var(--line);font-size:12px;color:var(--muted);min-width:0}
-.step b{display:block;color:var(--ink);font-size:13px}
-.step.done{border-top-color:var(--accent)}.step.now{border-top-color:var(--s2)}
+.step{padding:8px 8px 6px;border-top:4px dashed var(--line);font-size:12px;color:var(--muted);min-width:0;border-radius:0 0 6px 6px}
+.step b{display:block;color:var(--muted);font-size:13px;font-weight:500}
+.step.done{border-top:4px solid var(--s4);background:var(--t4);color:var(--ink)}.step.done b{color:var(--s4);font-weight:700}
 .next{margin-top:16px;padding:14px;border-radius:8px;background:var(--surface-2);border:1px dashed var(--line)}
 .next h3{margin:0 0 10px;font-size:15px}
 details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:14px;margin-top:14px}
@@ -103,8 +103,17 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
 .ktable tbody tr{cursor:default}
 .stack>*{min-width:0}
 [hidden]{display:none!important}
+#pops{position:fixed;right:16px;bottom:16px;z-index:50;display:flex;flex-direction:column;gap:10px;width:min(360px,calc(100vw - 32px))}
+.pop{background:var(--surface);border-radius:14px;box-shadow:0 10px 30px rgba(15,27,45,.28);overflow:hidden;animation:tin .35s ease-out;border:1px solid var(--line)}
+.pop-h{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#1d7f4e;color:#fff;font-size:13px;font-weight:700}
+.pop-h span{flex:1}.pop-h button{background:none;border:0;color:#fff;font-size:18px;line-height:1;cursor:pointer;padding:0 2px}
+.pop-b{padding:10px 12px;font-size:14px;display:flex;flex-direction:column;gap:6px}
+.pop-b p{margin:0;padding:8px 10px;border-radius:12px 12px 12px 2px;background:var(--surface-2)}
+.pop-b p.err{background:var(--tdanger);color:var(--danger)}.pop-b p.due{background:var(--t2);color:var(--s2)}
+.pop-b small{color:var(--muted)}.pop-a{display:flex;gap:8px;padding:0 12px 12px}.pop-a .btn{flex:1}
+@keyframes tin{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
 @media (max-width:560px){.brand span{display:none}nav{width:100%}nav button{flex:1;padding:8px 4px}
-  .track{grid-template-columns:1fr}.step{border-top:none;border-left:4px solid var(--line);padding:4px 10px}.step.done{border-left-color:var(--accent)}.step.now{border-left-color:var(--s2)}}
+  .track{grid-template-columns:1fr}.step{border-top:none;border-left:4px solid var(--line);padding:4px 10px}.step.done{border-left:4px solid var(--s4)}}
 </style>
 </head>
 <body>
@@ -309,7 +318,8 @@ $("gate-form").addEventListener("submit",async e=>{e.preventDefault();PIN=$("g-p
 function enter(){$("gate").hidden=true;$("who").innerHTML=`${esc(NAME)}<button type="button" id="logout">ออก</button>`;
   $("logout").onclick=()=>{store("scl_pin",null);location.reload()};
   if(START_CODE&&CODE_RE.test(START_CODE)){setMode("view");lookup(START_CODE)}
-  api("apiList").then(l=>{items=l;showStuck()}).catch(()=>{})}
+  api("apiList").then(l=>{items=l;showStuck();showDue();popAlerts(true)}).catch(()=>{});
+  setInterval(()=>api("apiList").then(l=>{items=l;showStuck();showDue();popAlerts(false)}).catch(()=>{}),5*60*1000)}
 (async()=>{const p=load("scl_pin"),n=load("scl_name");if(p&&n){PIN=p;NAME=n;try{await api("apiCheck");enter()}catch(e){PIN=""}}})();
 
 /* ---------- tabs ---------- */
@@ -407,7 +417,7 @@ function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
     <p class="sub" style="margin:10px 0">ป้ายเปล่า กรอกข้อมูลเพื่อรับเข้าคลัง</p>${editForm({},true)}</div>`;bindEdit(code,true,null);return}
   const i=si(it.status);
   const dates=[it.createdAt,it.receivedDate,it.shipDate,it.arrivedDate,it.deliveredDate];
-  const track=ST.map((s,k)=>`<div class="step ${k<i?"done":k===i?"now done":""}"><b>${s}</b>${k<=i?fmtD(dates[k]):"&nbsp;"}</div>`).join("");
+  const track=ST.map((s,k)=>`<div class="step ${k<i?"done":k===i?"now done":""}"><b>${s}</b>${k<=i?"&#10003; "+fmtD(dates[k]):"ยังไม่อัปเดต"}</div>`).join("");
   box.innerHTML=`<div class="panel">
     <div class="card-head"><span class="code">${esc(code)}</span>${pill(it.status)}</div>
     <dl class="kv">
@@ -568,8 +578,29 @@ function dueText(n){return n<0?`เลยนัด ${-n} วัน`:n===0?"น�
 function duePill(it){if(!isDueSoon(it))return "";const n=daysUntil(it.planDate);
   return ` <span class="pill" style="color:${n<0?"var(--danger)":"var(--s2)"};background:${n<0?"var(--tdanger)":"var(--t2)"}">${dueText(n)}</span>`}
 function showDue(){const n=items.filter(isDueSoon).length,bar=$("due-bar");bar.hidden=!n;
-  if(n)bar.textContent=`ใกล้วันนัดส่ง: สินค้ายังไม่ขึ้นรถ และนัดส่งภายใน ${DUE_DAYS} วัน ${n} รายการ (กดเพื่อดูรายการ)`}
+  if(n)bar.textContent=`ใกล้วันที่นัดส่ง: สินค้ายังไม่ขึ้นรถ และเหลือไม่เกิน ${DUE_DAYS} วัน ถึงวันที่นัดส่ง ${n} รายการ (กดเพื่อดูรายการ)`}
 $("due-bar").addEventListener("click",()=>{filterStatus=-3;showTab("list")});
+/* ---------- popup alert (in page + device notification) ---------- */
+function popAlerts(first){const st=items.filter(isStuck),du=items.filter(isDueSoon);
+  const ids=st.concat(du).map(it=>it.code).sort().join(",");
+  const prev=load("scl_alert_seen")||"";
+  if(!ids){store("scl_alert_seen","");return}
+  const isNew=ids.split(",").some(c=>!prev.split(",").includes(c));
+  if(!first&&!isNew)return;store("scl_alert_seen",ids);
+  const line=it=>`${esc(it.customer||"")} · บิล ${esc(it.billNo||it.code)}`;
+  let b="";
+  if(st.length)b+=`<p class="err"><b>ค้างเกิน ${STUCK_DAYS} วัน และยังไม่ขึ้นรถ ${st.length} รายการ</b><br>${st.slice(0,3).map(line).join("<br>")}${st.length>3?"<br>…":""}</p>`;
+  if(du.length)b+=`<p class="due"><b>เหลือไม่เกิน ${DUE_DAYS} วัน ถึงวันที่นัดส่ง ${du.length} รายการ</b><br>${du.slice(0,3).map(it=>line(it)+" · "+dueText(daysUntil(it.planDate))).join("<br>")}${du.length>3?"<br>…":""}</p>`;
+  const t=document.createElement("div");t.className="pop";t.setAttribute("role","alert");
+  const canAsk="Notification" in window&&Notification.permission==="default";
+  t.innerHTML=`<div class="pop-h"><span>SCL WMS แจ้งเตือน</span><small>${new Date().toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})} น.</small><button type="button" aria-label="ปิด">&times;</button></div><div class="pop-b">${b}</div><div class="pop-a"><button type="button" class="btn primary" data-go>ดูรายการ</button>${canAsk?'<button type="button" class="btn" data-perm>เปิดแจ้งเตือนบนเครื่อง</button>':""}</div>`;
+  t.querySelector(".pop-h button").onclick=()=>t.remove();
+  t.querySelector("[data-go]").onclick=()=>{filterStatus=st.length?-2:-3;showTab("list");t.remove()};
+  const pb=t.querySelector("[data-perm]");if(pb)pb.onclick=()=>Notification.requestPermission().then(()=>pb.remove());
+  $("pops").prepend(t);while($("pops").children.length>3)$("pops").lastChild.remove();
+  if("Notification" in window&&Notification.permission==="granted"&&(isNew||document.hidden)){
+    try{const n=new Notification("SCL WMS แจ้งเตือน",{body:[st.length?`ค้างเกิน ${STUCK_DAYS} วัน ยังไม่ขึ้นรถ ${st.length} รายการ`:"",du.length?`ใกล้วันที่นัดส่ง ${du.length} รายการ`:""].filter(Boolean).join(" / "),tag:"scl-wms-alert"});
+      n.onclick=()=>{window.focus();filterStatus=st.length?-2:-3;showTab("list");n.close()}}catch(e){}}}
 /* ---------- KPI (weekly / monthly) ---------- */
 let kpiData=null;
 const ymdL=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
@@ -671,5 +702,6 @@ $("kpi-mail").addEventListener("click",async()=>{if(!kpiData)return;const k=kpiD
 $("q").addEventListener("input",renderList);$("q-date").addEventListener("input",renderList);
 $("tbody").addEventListener("click",e=>{const tr=e.target.closest("tr");if(!tr)return;showTab("scan");setMode("view");lookup(tr.dataset.code)});
 </script>
+<div id="pops" aria-live="polite"></div>
 </body>
 </html>
