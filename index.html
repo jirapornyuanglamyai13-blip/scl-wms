@@ -237,13 +237,22 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
       <button class="btn" id="refresh-btn" type="button">รีเฟรช</button>
     </div>
     <div class="counts" id="counts"></div>
+    <div class="panel stack" id="trip-panel">
+      <div class="row">
+        <label class="f" style="flex:1 1 200px">เลขเที่ยว (จัดเข้าเที่ยว / ปิดเที่ยว)<input id="t-trip" placeholder="เช่น 691100127" style="text-transform:uppercase"></label>
+        <button class="btn" type="button" id="t-plan">จัดบิลที่เลือกเข้าเที่ยวนี้</button>
+        <button class="btn primary" type="button" id="t-close">ปิดเที่ยว: ตรวจบิลตกเที่ยว</button>
+      </div>
+      <p class="sub" style="margin:0" id="t-sel">ติ๊กเลือกบิลในตาราง (เฉพาะบิลที่ยังไม่ขึ้นรถ) แล้วกด "จัดบิลที่เลือกเข้าเที่ยวนี้" · เมื่อรถออก กด "ปิดเที่ยว" ระบบจะเตือนบิลที่จัดไว้แต่ไม่ได้สแกนขึ้นรถทันที</p>
+      <div id="t-msg" hidden></div>
+    </div>
     <div class="row">
       <label class="f" style="flex:1 1 240px">ค้นหา<input id="q" placeholder="รหัส, ลูกค้า, เลขบิล, ร้านค้า, เลขเที่ยว"></label>
       <label class="f" style="width:170px">วันที่ออกรถ<input id="q-date" type="date"></label>
     </div>
     <div class="tablebox">
       <table>
-        <thead><tr><th>รหัส</th><th>สถานะ</th><th>ลูกค้า</th><th>เลขบิล</th><th>ร้านค้า</th><th>จำนวน</th><th>รับเข้า</th><th>เที่ยว</th><th>ออกรถ</th><th>ถึง</th><th>นัดส่ง</th><th>ส่งสำเร็จ</th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="t-all" style="width:auto" aria-label="เลือกทั้งหมดที่ยังไม่ขึ้นรถ"></th><th>รหัส</th><th>สถานะ</th><th>ลูกค้า</th><th>เลขบิล</th><th>ร้านค้า</th><th>จำนวน</th><th>รับเข้า</th><th>เที่ยว</th><th>ออกรถ</th><th>ถึง</th><th>นัดส่ง</th><th>ส่งสำเร็จ</th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
       <div id="list-empty" class="empty">กำลังโหลด...</div>
@@ -427,7 +436,7 @@ function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
       <div><dt>สาขา / จุดกระจาย</dt><dd>${esc(it.branch||"-")}</dd></div>
       <div><dt>จำนวน</dt><dd>${esc(it.qty||"-")} ${esc(it.unit)}</dd></div>
       <div><dt>สินค้า</dt><dd>${esc(it.desc||"-")}</dd></div>
-      <div><dt>เลขเที่ยว</dt><dd>${esc(it.trip||"-")}</dd></div>
+      <div><dt>เลขเที่ยว</dt><dd>${esc(it.trip||"-")}</dd></div>${it.planTrip?`<div><dt>เที่ยวที่วางแผน</dt><dd>${esc(it.planTrip)}${isMissed(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ตกเที่ยว</span>`:""}</dd></div>`:""}
       <div><dt>วันนัดส่ง</dt><dd>${fmtD(it.planDate)}${duePill(it)}</dd></div>
       ${it.receiver?`<div><dt>ผู้รับสินค้า</dt><dd>${esc(it.receiver)}</dd></div>`:""}
       ${it.note?`<div style="grid-column:1/-1"><dt>หมายเหตุ</dt><dd>${esc(it.note)}</dd></div>`:""}
@@ -505,7 +514,7 @@ async function batchApply(code){const li=document.createElement("li");$("batch-l
     const g=id=>$(id)?$(id).value:undefined;
     const p=stepPatch(mode,{date:g("b-date")||g("b-ship")||today(),trip:g("b-trip"),ttype:g("b-ttype"),driver:g("b-driver"),recv:g("b-recv")});
     const r=await api("apiSave",code,p,ST[+mode],NAME,mode!=="1");
-    const warn=si(r.prev)>=+mode?` (เดิม: ${r.prev})`:"";
+    const warn=(si(r.prev)>=+mode?` (เดิม: ${r.prev})`:"")+(+mode===2&&r.item.planTrip&&p.trip&&r.item.planTrip!==p.trip?` (แผนเดิม เที่ยว ${r.item.planTrip})`:"");
     li.innerHTML=`<span class="code">${esc(code)}</span>${pill(ST[+mode])}<span>${esc((r.item.store||"ป้ายเปล่า")+(p.trip?" · เที่ยว "+p.trip:"")+warn)}</span>`;
     beep(true);showResult(true,li.innerHTML)}
   catch(err){li.className="err";li.innerHTML=`<span class="code">${esc(code)}</span><span>${esc(err.message)}</span>`;beep(false);showResult(false,li.innerHTML)}
@@ -550,15 +559,17 @@ async function refreshList(){$("list-empty").hidden=false;$("list-empty").textCo
   catch(err){$("list-empty").textContent="โหลดไม่สำเร็จ: "+err.message}}
 $("refresh-btn").addEventListener("click",refreshList);
 function filtered(){const q=$("q").value.trim().toLowerCase(),qd=$("q-date").value;
-  return items.filter(it=>(filterStatus===-3?isDueSoon(it):filterStatus===-2?isStuck(it):(filterStatus<0||si(it.status)===filterStatus))&&(!qd||it.shipDate===qd)&&(!q||[it.code,it.customer,it.billNo,it.store,it.trip,it.branch,it.desc].some(v=>String(v||"").toLowerCase().includes(q))))}
+  return items.filter(it=>(filterStatus===-5?isCutoff(it):filterStatus===-4?isMissed(it):filterStatus===-3?isDueSoon(it):filterStatus===-2?isStuck(it):(filterStatus<0||si(it.status)===filterStatus))&&(!qd||it.shipDate===qd)&&(!q||[it.code,it.customer,it.billNo,it.store,it.trip,it.planTrip,it.branch,it.desc].some(v=>String(v||"").toLowerCase().includes(q))))}
 function renderList(){const c=[0,0,0,0,0];for(const it of items)c[si(it.status)]++;
   const nStuck=items.filter(isStuck).length;
   $("counts").innerHTML=`<button data-s="-1" aria-pressed="${filterStatus===-1}"><small>ทั้งหมด</small><strong>${items.length}</strong></button>`+ST.map((s,k)=>`<button data-s="${k}" aria-pressed="${filterStatus===k}"><small>${s}</small><strong>${c[k]}</strong></button>`).join("")+
     `<button data-s="-2" aria-pressed="${filterStatus===-2}" style="color:var(--danger)"><small>ค้างโกดังเกิน ${STUCK_DAYS} วัน</small><strong>${nStuck}</strong></button>`+
-    `<button data-s="-3" aria-pressed="${filterStatus===-3}" style="color:var(--s2)"><small>ใกล้วันนัดส่ง</small><strong>${items.filter(isDueSoon).length}</strong></button>`;
+    `<button data-s="-3" aria-pressed="${filterStatus===-3}" style="color:var(--s2)"><small>ใกล้วันนัดส่ง</small><strong>${items.filter(isDueSoon).length}</strong></button>`+
+    `<button data-s="-4" aria-pressed="${filterStatus===-4}" style="color:var(--danger)"><small>ตกเที่ยวรถ</small><strong>${items.filter(isMissed).length}</strong></button>`+
+    `<button data-s="-5" aria-pressed="${filterStatus===-5}" style="color:var(--s2)"><small>ตัดรอบ ${CUTOFF_HOUR}:00 ยังไม่ขึ้นรถ</small><strong>${items.filter(isCutoff).length}</strong></button>`;
   showStuck();showDue();
   const rows=filtered();if(filterStatus===-3)rows.sort((a,b)=>daysUntil(a.planDate)-daysUntil(b.planDate));
-  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td class="code">${esc(it.code)}</td><td>${pill(it.status)}</td><td>${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td>${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}${isStuck(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ค้าง ${daysSince(it.receivedDate||it.createdAt)} วัน</span>`:""}</td><td>${esc(it.trip)}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}${duePill(it)}</td><td>${fmtD(it.deliveredDate)}</td></tr>`).join("");
+  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td>${si(it.status)<2?`<input type="checkbox" class="t-chk" value="${esc(it.code)}" style="width:auto"${selCodes.has(it.code)?" checked":""}>`:""}</td><td class="code">${esc(it.code)}${isMissed(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ตกเที่ยว ${esc(it.planTrip)}</span>`:""}</td><td>${pill(it.status)}</td><td>${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td>${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}${isStuck(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ค้าง ${daysSince(it.receivedDate||it.createdAt)} วัน</span>`:""}</td><td>${esc(it.trip)}${!it.trip&&it.planTrip?`<span style="color:var(--muted)">แผน ${esc(it.planTrip)}</span>`:""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}${duePill(it)}</td><td>${fmtD(it.deliveredDate)}</td></tr>`).join("");
   $("list-empty").hidden=rows.length>0;$("list-empty").textContent=items.length?"ไม่พบรายการตามเงื่อนไข":"ยังไม่มีสินค้า เริ่มจากแท็บ สร้างป้าย QR"}
 $("counts").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;filterStatus=+b.dataset.s;renderList()});
 /* ---------- stuck in warehouse alert ---------- */
@@ -581,26 +592,47 @@ function showDue(){const n=items.filter(isDueSoon).length,bar=$("due-bar");bar.h
   if(n)bar.textContent=`ใกล้วันที่นัดส่ง: สินค้ายังไม่ขึ้นรถ และเหลือไม่เกิน ${DUE_DAYS} วัน ถึงวันที่นัดส่ง ${n} รายการ (กดเพื่อดูรายการ)`}
 $("due-bar").addEventListener("click",()=>{filterStatus=-3;showTab("list")});
 /* ---------- popup alert (in page + device notification) ---------- */
-function popAlerts(first){const st=items.filter(isStuck),du=items.filter(isDueSoon);
-  const ids=st.concat(du).map(it=>it.code).sort().join(",");
+/* ---------- trip plan / close / cutoff ---------- */
+const CUTOFF_HOUR=15;
+function isMissed(it){return !!it.missedTrip&&si(it.status)<2}
+function isCutoff(it){return it.status===ST[1]&&String(it.receivedDate||"").slice(0,10)===today()&&new Date().getHours()>=CUTOFF_HOUR}
+const selCodes=new Set();
+function showSel(){$("t-sel").textContent=selCodes.size?`เลือกไว้ ${selCodes.size} บิล`:"ติ๊กเลือกบิลในตาราง (เฉพาะบิลที่ยังไม่ขึ้นรถ) แล้วกด \"จัดบิลที่เลือกเข้าเที่ยวนี้\" · เมื่อรถออก กด \"ปิดเที่ยว\" ระบบจะเตือนบิลที่จัดไว้แต่ไม่ได้สแกนขึ้นรถทันที"}
+$("tbody").addEventListener("change",e=>{const c=e.target.closest(".t-chk");if(!c)return;c.checked?selCodes.add(c.value):selCodes.delete(c.value);showSel()});
+$("t-all").addEventListener("change",e=>{for(const c of document.querySelectorAll(".t-chk")){c.checked=e.target.checked;c.checked?selCodes.add(c.value):selCodes.delete(c.value)}showSel()});
+async function reloadList(){items=await api("apiList");renderList();showStuck();showDue()}
+$("t-plan").addEventListener("click",async()=>{const trip=$("t-trip").value.trim().toUpperCase(),btn=$("t-plan");
+  if(!trip)return note($("t-msg"),"กรอกเลขเที่ยวก่อน","err");if(!selCodes.size)return note($("t-msg"),"ยังไม่ได้เลือกบิล","err");
+  btn.disabled=true;try{const r=await api("apiPlanTrip",[...selCodes],trip,NAME);selCodes.clear();$("t-all").checked=false;showSel();
+    note($("t-msg"),`จัดเข้าเที่ยว ${r.trip} แล้ว ${r.n} บิล`,"ok");await reloadList()}catch(err){note($("t-msg"),err.message,"err")}finally{btn.disabled=false}});
+$("t-close").addEventListener("click",async()=>{const trip=$("t-trip").value.trim().toUpperCase(),btn=$("t-close");
+  if(!trip)return note($("t-msg"),"กรอกเลขเที่ยวก่อน","err");
+  if(!confirm(`ปิดเที่ยว ${trip}?\nบิลที่จัดเข้าเที่ยวนี้แต่ยังไม่ได้สแกนขึ้นรถ จะถูกแจ้งว่า "ตกเที่ยว" และส่งอีเมลแจ้งทีมทันที`))return;
+  btn.disabled=true;try{const r=await api("apiCloseTrip",trip,NAME);
+    note($("t-msg"),r.missed.length?`เที่ยว ${r.trip}: ขึ้นรถแล้ว ${r.loaded}/${r.planned} บิล · ตกเที่ยว ${r.missed.length} บิล (ส่งอีเมลแจ้งแล้ว): ${r.missed.map(o=>(o.billNo||o.code)+" "+(o.store||"")).join(", ")}`:`เที่ยว ${r.trip}: ขึ้นรถครบ ${r.planned} บิล ไม่มีบิลตกเที่ยว`,r.missed.length?"err":"ok");
+    await reloadList();popAlerts(true);if(r.missed.length){filterStatus=-4;renderList()}}catch(err){note($("t-msg"),err.message,"err")}finally{btn.disabled=false}});
+function popAlerts(first){const st=items.filter(isStuck),du=items.filter(isDueSoon),ms=items.filter(isMissed),co=items.filter(isCutoff);
+  const ids=ms.map(it=>"M"+it.code).concat(co.map(it=>"C"+it.code),st.map(it=>it.code),du.map(it=>it.code)).sort().join(",");
   const prev=load("scl_alert_seen")||"";
   if(!ids){store("scl_alert_seen","");return}
   const isNew=ids.split(",").some(c=>!prev.split(",").includes(c));
   if(!first&&!isNew)return;store("scl_alert_seen",ids);
   const line=it=>`${esc(it.customer||"")} · บิล ${esc(it.billNo||it.code)}`;
   let b="";
+  if(ms.length)b+=`<p class="err"><b>ตกเที่ยวรถ ยังไม่ได้ขึ้นรถ ${ms.length} รายการ</b><br>${ms.slice(0,3).map(it=>line(it)+" · เที่ยว "+esc(it.planTrip)).join("<br>")}${ms.length>3?"<br>…":""}</p>`;
+  if(co.length)b+=`<p class="due"><b>ตัดรอบ ${CUTOFF_HOUR}:00 น. รับเข้าวันนี้ ยังไม่ขึ้นรถ ${co.length} รายการ</b><br>${co.slice(0,3).map(line).join("<br>")}${co.length>3?"<br>…":""}</p>`;
   if(st.length)b+=`<p class="err"><b>ค้างเกิน ${STUCK_DAYS} วัน และยังไม่ขึ้นรถ ${st.length} รายการ</b><br>${st.slice(0,3).map(line).join("<br>")}${st.length>3?"<br>…":""}</p>`;
   if(du.length)b+=`<p class="due"><b>เหลือไม่เกิน ${DUE_DAYS} วัน ถึงวันที่นัดส่ง ${du.length} รายการ</b><br>${du.slice(0,3).map(it=>line(it)+" · "+dueText(daysUntil(it.planDate))).join("<br>")}${du.length>3?"<br>…":""}</p>`;
   const t=document.createElement("div");t.className="pop";t.setAttribute("role","alert");
   const canAsk="Notification" in window&&Notification.permission==="default";
   t.innerHTML=`<div class="pop-h"><span>SCL WMS แจ้งเตือน</span><small>${new Date().toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"})} น.</small><button type="button" aria-label="ปิด">&times;</button></div><div class="pop-b">${b}</div><div class="pop-a"><button type="button" class="btn primary" data-go>ดูรายการ</button>${canAsk?'<button type="button" class="btn" data-perm>เปิดแจ้งเตือนบนเครื่อง</button>':""}</div>`;
   t.querySelector(".pop-h button").onclick=()=>t.remove();
-  t.querySelector("[data-go]").onclick=()=>{filterStatus=st.length?-2:-3;showTab("list");t.remove()};
+  t.querySelector("[data-go]").onclick=()=>{filterStatus=ms.length?-4:co.length?-5:st.length?-2:-3;showTab("list");t.remove()};
   const pb=t.querySelector("[data-perm]");if(pb)pb.onclick=()=>Notification.requestPermission().then(()=>pb.remove());
   $("pops").prepend(t);while($("pops").children.length>3)$("pops").lastChild.remove();
   if("Notification" in window&&Notification.permission==="granted"&&(isNew||document.hidden)){
-    try{const n=new Notification("SCL WMS แจ้งเตือน",{body:[st.length?`ค้างเกิน ${STUCK_DAYS} วัน ยังไม่ขึ้นรถ ${st.length} รายการ`:"",du.length?`ใกล้วันที่นัดส่ง ${du.length} รายการ`:""].filter(Boolean).join(" / "),tag:"scl-wms-alert"});
-      n.onclick=()=>{window.focus();filterStatus=st.length?-2:-3;showTab("list");n.close()}}catch(e){}}}
+    try{const n=new Notification("SCL WMS แจ้งเตือน",{body:[ms.length?`ตกเที่ยว ${ms.length} รายการ`:"",co.length?`ตัดรอบ ${CUTOFF_HOUR}:00 ยังไม่ขึ้นรถ ${co.length} รายการ`:"",st.length?`ค้างเกิน ${STUCK_DAYS} วัน ยังไม่ขึ้นรถ ${st.length} รายการ`:"",du.length?`ใกล้วันที่นัดส่ง ${du.length} รายการ`:""].filter(Boolean).join(" / "),tag:"scl-wms-alert"});
+      n.onclick=()=>{window.focus();filterStatus=ms.length?-4:co.length?-5:st.length?-2:-3;showTab("list");n.close()}}catch(e){}}}
 /* ---------- KPI (weekly / monthly) ---------- */
 let kpiData=null;
 const ymdL=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
@@ -700,7 +732,7 @@ $("kpi-mail").addEventListener("click",async()=>{if(!kpiData)return;const k=kpiD
     store("scl_kpi_mail",to);note($("kpi-msg"),`ส่งอีเมลรายงานแล้ว (${r.sent} ผู้รับ)`,"ok")}
   catch(err){note($("kpi-msg"),"ส่งอีเมลไม่สำเร็จ: "+err.message,"err")}finally{btn.disabled=false}});
 $("q").addEventListener("input",renderList);$("q-date").addEventListener("input",renderList);
-$("tbody").addEventListener("click",e=>{const tr=e.target.closest("tr");if(!tr)return;showTab("scan");setMode("view");lookup(tr.dataset.code)});
+$("tbody").addEventListener("click",e=>{if(e.target.closest("input"))return;const tr=e.target.closest("tr");if(!tr)return;showTab("scan");setMode("view");lookup(tr.dataset.code)});
 </script>
 <div id="pops" aria-live="polite"></div>
 </body>
