@@ -32,6 +32,8 @@ h2{font-size:18px;margin:0 0 4px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 label.f{display:grid;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+.pfx{display:flex;align-items:stretch}.pfx b{display:flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-right:0;border-radius:6px 0 0 6px;background:var(--line);color:var(--ink);font-size:15px}
+.pfx input{border-radius:0 6px 6px 0;flex:1;min-width:0}
 label.f.wide{grid-column:1/-1}
 input,select,textarea{font:inherit;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:9px 10px;width:100%;min-width:0}
 textarea{min-height:56px;resize:vertical}
@@ -196,8 +198,15 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
         <button type="button" data-kind="blank" aria-pressed="false">ป้ายเปล่า</button>
       </div>
       <div class="photo-box" id="l-photo-box">
-        <button type="button" class="btn primary" id="l-photo-btn">ถ่ายรูปบิล ให้ระบบกรอกข้อมูลให้</button>
+        <div class="row">
+          <button type="button" class="btn primary" id="l-photo-btn" style="flex:1 1 220px">ถ่ายรูปบิล ให้ระบบกรอกข้อมูลให้</button>
+          <button type="button" class="btn" id="l-scan-btn" style="flex:1 1 220px">แนบไฟล์สแกนบิล (รูป หรือ PDF)</button>
+          <button type="button" class="btn" id="l-xls-btn" style="flex:1 1 220px">นำเข้าไฟล์ Excel (หลายบิล)</button>
+        </div>
         <input type="file" id="l-photo-input" class="hidden-file" accept="image/*" capture="environment" tabindex="-1">
+        <input type="file" id="l-scan-input" class="hidden-file" accept="image/*,application/pdf,.pdf" tabindex="-1">
+        <input type="file" id="l-xls-input" class="hidden-file" accept=".xlsx,.xls,.csv" tabindex="-1">
+        <p class="sub" style="margin:0;font-size:13px">ไฟล์ Excel: แถวแรกเป็นหัวคอลัมน์ ลูกค้า, เลขที่บิล, ร้านค้าปลายทาง, สาขา, วันนัดส่ง, ประเภทสินค้า, จำนวน, หน่วย · <a href="#" id="l-xls-tpl">ดาวน์โหลดไฟล์ตัวอย่าง</a></p>
         <div id="l-photo-msg" hidden></div>
         <div id="l-photo-prev" class="row" style="align-items:center" hidden>
           <img id="l-photo-img" alt="รูปบิลที่ถ่าย" style="width:140px">
@@ -206,12 +215,13 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
         <details id="l-ocr-wrap" hidden><summary>ข้อความที่อ่านได้จากรูป</summary><textarea id="l-ocr" rows="6" readonly></textarea></details>
       </div>
       <div class="grid" id="label-detail">
-        <label class="f">ลูกค้า (เจ้าของสินค้า)<input id="l-customer" placeholder="เช่น บริษัทผู้ส่งสินค้า"></label>
-        <label class="f">เลขที่บิล<input id="l-bill" required></label>
-        <label class="f">ร้านค้าปลายทาง<input id="l-store" required></label>
-        <label class="f">สาขา / จุดกระจาย<input id="l-branch"></label>
+        <label class="f">ลูกค้า (เจ้าของสินค้า)<input id="l-customer" list="dl-customer" value="บริษัทพรีเมียร์ มาเก็ตติ้ง" placeholder="เลือก หรือพิมพ์ชื่อลูกค้าใหม่"></label>
+        <label class="f">เลขที่บิล<span class="pfx"><b aria-hidden="true">RI</b><input id="l-bill" required inputmode="numeric" pattern="[0-9]+" title="ใส่เฉพาะตัวเลข ระบบเติม RI ให้" placeholder="ใส่เฉพาะตัวเลข" aria-label="เลขที่บิล (ขึ้นต้น RI ให้อัตโนมัติ)"></span></label>
+        <label class="f">ร้านค้าปลายทาง<input id="l-store" list="dl-store" placeholder="เลือกร้านที่เคยบันทึก หรือพิมพ์ใหม่" required></label>
+        <label class="f">สาขา / จุดกระจาย<select id="l-branch"><option value="">เลือกสาขา</option><option>แม่สอด</option><option>นครสวรรค์</option><option>พิษณุโลก</option><option>แพร่</option><option>น่าน</option><option>พะเยา</option><option>ลำปาง</option><option>เชียงใหม่</option><option>เชียงราย</option></select></label>
         <label class="f">วันนัดส่ง<input id="l-plan" type="date"></label>
-        <label class="f wide">สินค้า<input id="l-desc"></label>
+        <label class="f wide">ประเภทสินค้า<input id="l-desc" list="dl-ptype" placeholder="เลือกประเภท หรือพิมพ์ใหม่"></label>
+        <datalist id="dl-customer"></datalist><datalist id="dl-store"></datalist><datalist id="dl-branch"></datalist><datalist id="dl-ptype"></datalist>
         <label class="f">จำนวนสินค้าในบิล<input id="l-qty" type="number" min="0" step="any" value="1"></label>
         <label class="f">หน่วย<select id="l-unit"><option>กล่อง</option><option>พาเลท</option><option>ลัง</option><option>ชิ้น</option><option>แพ็ค</option></select></label>
         <label class="f">สถานะเริ่มต้น<select id="l-recv"><option value="0">รอรับเข้า</option><option value="1">รับเข้าคลังแล้ววันนี้</option></select></label>
@@ -343,7 +353,7 @@ function enter(){$("gate").hidden=true;$("who").innerHTML=`${esc(NAME)}<button t
 
 /* ---------- tabs ---------- */
 function showTab(t){for(const b of document.querySelectorAll("nav button"))b.setAttribute("aria-selected",b.dataset.tab===t);
-  for(const v of ["scan","labels","list","kpi"])$("view-"+v).hidden=v!==t;if(t!=="scan")stopCam();if(t==="list")refreshList();if(t==="kpi"){fillKpiCust();if(!kpiData)runKpi()}}
+  for(const v of ["scan","labels","list","kpi"])$("view-"+v).hidden=v!==t;if(t!=="scan")stopCam();if(t==="list")refreshList();if(t==="labels"){fillLabelLists();if(!items.length)api("apiList").then(l=>{items=l;fillLabelLists()}).catch(()=>{})}if(t==="kpi"){fillKpiCust();if(!kpiData)runKpi()}}
 document.querySelector("nav").addEventListener("click",e=>{const b=e.target.closest("button");if(b)showTab(b.dataset.tab)});
 
 /* ---------- modes ---------- */
@@ -497,7 +507,7 @@ function editForm(it,isNew){return `<form id="edit-form" class="stack" style="ma
     <label class="f">จำนวน<input id="e-qty" type="number" step="any" value="${esc(it.qty)}"></label>
     <label class="f">หน่วย<input id="e-unit" value="${esc(it.unit||"กล่อง")}"></label>
     <label class="f">วันนัดส่ง<input id="e-plan" type="date" value="${esc(it.planDate)}"></label>
-    <label class="f wide">สินค้า<input id="e-desc" value="${esc(it.desc)}"></label>
+    <label class="f wide">ประเภทสินค้า<input id="e-desc" list="dl-ptype" value="${esc(it.desc)}"></label>
     ${isNew?`<label class="f">วันที่รับเข้า<input id="e-recvdate" type="date" value="${today()}"></label>`:`
     <label class="f">สถานะ<select id="e-status">${ST.map(s=>`<option ${s===it.status?"selected":""}>${s}</option>`).join("")}</select></label>
     <label class="f">วันที่รับเข้า<input id="e-recvdate" type="date" value="${esc(it.receivedDate)}"></label>
@@ -535,15 +545,19 @@ let lastBatch=null,lastLabels=[];
 $("label-kind").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;labelKind=b.dataset.kind;
   for(const x of $("label-kind").children)x.setAttribute("aria-pressed",x===b);$("label-detail").hidden=labelKind==="blank";
   $("l-bill").required=$("l-store").required=labelKind==="full"});
+/* เลขที่บิลขึ้นต้น RI เสมอ ผู้ใช้กรอกเฉพาะตัวเลข */
+const riDigits=v=>String(v||"").trim().replace(/^RI/i,"").replace(/\D/g,"");
+const riBill=v=>{const d=riDigits(v);return d?"RI"+d:""};
+$("l-bill").addEventListener("input",e=>{const d=riDigits(e.target.value);if(d!==e.target.value)e.target.value=d});
 function labelCount(){return Math.max(1,Math.min(200,parseInt($("l-count").value)||1))}
-function labelBase(){const base=labelKind==="full"?{customer:$("l-customer").value.trim(),billNo:$("l-bill").value.trim(),store:$("l-store").value.trim(),branch:$("l-branch").value.trim(),planDate:$("l-plan").value,
+function labelBase(){const base=labelKind==="full"?{customer:$("l-customer").value.trim(),billNo:riBill($("l-bill").value),store:$("l-store").value.trim(),branch:$("l-branch").value.trim(),planDate:$("l-plan").value,
     desc:$("l-desc").value.trim(),qty:$("l-qty").value,unit:$("l-unit").value}:{};
   if(labelKind==="full"&&$("l-recv").value==="1"){base.status=ST[1];base.receivedDate=today()}
   if(billPhoto&&$("l-photo-attach").checked)base.photo=billPhoto;
   return base}
 $("label-form").addEventListener("submit",async e=>{e.preventDefault();const msg=$("label-msg");const n=labelCount();const base=labelBase();
   $("l-submit").disabled=true;note(msg,`กำลังสร้าง ${n} ป้าย...`);
-  try{const r=await api("apiCreateLabels",base,n,NAME);lastBatch=r.batch;lastCodes=null;lastLabels=r.items;renderLabels();note(msg,`สร้าง ${n} ป้ายแล้ว (ชุด ${r.batch})`,"ok")}
+  try{const r=await api("apiCreateLabels",base,n,NAME);lastBatch=r.batch;lastCodes=null;lastLabels=r.items;items.push(...r.items);fillLabelLists();renderLabels();note(msg,`สร้าง ${n} ป้ายแล้ว (ชุด ${r.batch})`,"ok")}
   catch(err){note(msg,"สร้างไม่สำเร็จ: "+err.message,"err")}finally{$("l-submit").disabled=false}});
 /* หลายบิลพร้อมกัน: เพิ่มบิลลงรายการทีละบิล แล้วสร้างป้ายทุกบิลในครั้งเดียว */
 let labelQueue=[],lastCodes=null;
@@ -570,21 +584,80 @@ $("l-make-all").addEventListener("click",async()=>{if(!labelQueue.length)return;
     note(msg,`สร้างป้ายครบ ${done} บิล รวม ${made.length} ป้ายแล้ว กดพิมพ์ป้ายได้ทั้งหมดในครั้งเดียว`,"ok")}
   catch(err){note(msg,`สร้างได้ ${done} บิล บิลที่เหลือยังอยู่ในรายการ กดสร้างอีกครั้งได้ · ${err.message}`,"err")}
   finally{btn.disabled=false;$("l-submit").disabled=false;renderQueue();
-    if(made.length){lastBatch=null;lastCodes=made.map(l=>l.code);lastLabels=made;renderLabels()}}});
+    if(made.length){lastBatch=null;lastCodes=made.map(l=>l.code);lastLabels=made;items.push(...made);fillLabelLists();renderLabels()}}});
 let billPhoto=null;
 $("l-photo-btn").addEventListener("click",()=>$("l-photo-input").click());
-$("l-photo-input").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;e.target.value="";const msg=$("l-photo-msg");
-  note(msg,"กำลังอ่านข้อมูลจากรูปบิล อาจใช้เวลา 5-20 วินาที...");$("l-photo-btn").disabled=true;
-  try{const d=await shrink(f,2000,.85);$("l-photo-img").src=d;$("l-photo-prev").hidden=false;
+$("l-scan-btn").addEventListener("click",()=>$("l-scan-input").click());
+// โหลด pdf.js และตัว worker เป็นสคริปต์ในหน้าเดียวกัน (ไม่ใช้ Web Worker ข้ามโดเมน) พอสำหรับอ่านบิลหน้าเดียว
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=src;s.onload=ok;
+  s.onerror=()=>no(new Error("โหลดตัวเปิดไฟล์ PDF ไม่ได้ ตรวจสอบอินเทอร์เน็ต"));document.head.appendChild(s)})}
+async function loadPdfJs(){if(window.pdfjsLib&&window.pdfjsWorker)return;const b="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+  await loadScript(b+"pdf.min.js");await loadScript(b+"pdf.worker.min.js");pdfjsLib.GlobalWorkerOptions.workerSrc=b+"pdf.worker.min.js"}
+/* ไฟล์สแกนบิล: รูปย่อขนาด, PDF แปลงหน้าแรกเป็นรูป แล้วใช้การอ่านบิลแบบเดียวกับถ่ายรูป */
+async function billFileToImage(f){
+  if(f.type==="application/pdf"||/\.pdf$/i.test(f.name)){await loadPdfJs();
+    const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise,pg=await pdf.getPage(1);
+    const v0=pg.getViewport({scale:1}),vp=pg.getViewport({scale:Math.min(3,2000/Math.max(v0.width,v0.height))});
+    const c=document.createElement("canvas");c.width=Math.round(vp.width);c.height=Math.round(vp.height);const ctx=c.getContext("2d");
+    ctx.fillStyle="#fff";ctx.fillRect(0,0,c.width,c.height);await pg.render({canvasContext:ctx,viewport:vp}).promise;
+    return {d:c.toDataURL("image/jpeg",.85),pages:pdf.numPages}}
+  if(!/^image\//.test(f.type))throw new Error("รองรับเฉพาะไฟล์รูป หรือ PDF");
+  return {d:await shrink(f,2000,.85),pages:1}}
+for(const id of ["l-photo-input","l-scan-input"])$(id).addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;e.target.value="";const msg=$("l-photo-msg");
+  note(msg,"กำลังอ่านข้อมูลจากบิล อาจใช้เวลา 5-20 วินาที...");$("l-photo-btn").disabled=$("l-scan-btn").disabled=true;
+  try{const {d,pages}=await billFileToImage(f);if(pages>1)toast(`PDF มี ${pages} หน้า ระบบอ่านเฉพาะหน้าแรก`);$("l-photo-img").src=d;$("l-photo-prev").hidden=false;
     const r=await api("apiOcr",d,NAME);billPhoto=r.photoId;const g=r.guess||{};const got=[];
     if(labelKind!=="full")$("label-kind").children[0].click();
     if(g.customer){$("l-customer").value=g.customer;got.push("ลูกค้า")}
-    if(g.billNo){$("l-bill").value=g.billNo;got.push("เลขที่บิล")}
+    if(g.billNo&&riDigits(g.billNo)){$("l-bill").value=riDigits(g.billNo);got.push("เลขที่บิล")}
     if(g.store){$("l-store").value=g.store;got.push("ร้านค้า")}
     $("l-ocr").value=r.text||"";$("l-ocr-wrap").hidden=!r.text;
     if(got.length)note(msg,"อ่านได้: "+got.join(", ")+(g.qty?" · จำนวนในบิล "+g.qty:"")+" ตรวจและแก้ให้ถูกก่อนกดสร้างป้าย","ok");
     else note(msg,r.text?"อ่านข้อความได้ แต่หาช่องข้อมูลไม่เจอ ดูข้อความที่อ่านได้ด้านล่างแล้วกรอกเอง":"อ่านข้อความจากรูปไม่ได้ ลองถ่ายใหม่ให้บิลเต็มภาพ ชัด ไม่เอียง","err")}
-  catch(err){note(msg,"อ่านรูปไม่สำเร็จ: "+err.message,"err")}finally{$("l-photo-btn").disabled=false}});
+  catch(err){note(msg,"อ่านบิลไม่สำเร็จ: "+err.message,"err")}finally{$("l-photo-btn").disabled=$("l-scan-btn").disabled=false}});
+/* ตัวเลือกจากข้อมูลที่เคยบันทึก */
+const PTYPES=["ขนมขบเคี้ยว","อาหารแห้ง","เครื่องดื่ม","ของใช้ในครัวเรือน","ของใช้ส่วนตัว"];
+const okVal=v=>v&&!/^[\s_\-/.]*$/.test(v)&&!/^\/\s*customer/i.test(v);
+function uniqOf(list,k){return [...new Set(list.map(i=>String(i[k]||"").trim()).filter(okVal))].sort((a,b)=>a.localeCompare(b,"th"))}
+function setDl(id,vals){$(id).innerHTML=vals.map(v=>`<option value="${esc(v)}"></option>`).join("")}
+function fillLabelLists(){setDl("dl-customer",uniqOf(items,"customer"));setDl("dl-branch",uniqOf(items,"branch"));
+  setDl("dl-ptype",[...new Set([...PTYPES,...uniqOf(items,"desc")])]);fillStores()}
+function fillStores(){const c=$("l-customer").value.trim(),mine=c?items.filter(i=>String(i.customer||"").trim()===c):[];
+  setDl("dl-store",uniqOf(mine.length?mine:items,"store"))}
+$("l-customer").addEventListener("input",fillStores);
+// เลือกร้านที่เคยบันทึก: เติมสาขาเดิมให้ ถ้ายังว่าง
+$("l-store").addEventListener("change",()=>{if($("l-branch").value.trim())return;const s=$("l-store").value.trim();
+  const b=uniqOf(items.filter(i=>String(i.store||"").trim()===s),"branch");if(b.length===1)$("l-branch").value=b[0]});
+/* นำเข้าไฟล์ Excel: 1 แถว = 1 บิล เข้ารายการรอสร้างป้าย */
+const XLS_COLS=[["customer",/ลูกค้า|customer/i],["planDate",/นัด|plan|due/i],["billNo",/บิล|bill|invoice|เลขที่/i],["store",/ร้าน|store|ปลายทาง/i],
+  ["branch",/สาขา|branch|จุดกระจาย/i],["unit",/หน่วย|unit/i],["qty",/จำนวน|qty/i],["desc",/ประเภท|สินค้า|product|type/i]];
+function xlsDate(v){if(v==null||v==="")return "";
+  if(typeof v==="number"){const d=new Date(Math.round((v-25569)*86400000));return d.toISOString().slice(0,10)}
+  const s=String(v).trim();let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m)return `${+m[1]>2400?m[1]-543:m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);if(!m)return "";let y=+m[3];if(y<100)y+=y>50?2400:2500;if(y>2400)y-=543;
+  return `${y}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`}
+$("l-xls-btn").addEventListener("click",()=>$("l-xls-input").click());
+$("l-xls-input").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;e.target.value="";const msg=$("label-msg");
+  try{await loadXlsx();const wb=XLSX.read(await f.arrayBuffer(),{type:"array"}),ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{defval:"",raw:true});if(!rows.length)throw new Error("ไม่พบข้อมูลในชีตแรก");
+    const map={};for(const h of Object.keys(rows[0])){const c=XLS_COLS.find(([k,re])=>!map[k]&&re.test(h));if(c)map[c[0]]=h}
+    if(!map.billNo||!map.store)throw new Error("ไม่พบคอลัมน์ เลขที่บิล หรือ ร้านค้าปลายทาง ในแถวหัวตาราง");
+    if(labelKind!=="full")$("label-kind").children[0].click();
+    const recv=$("l-recv").value==="1";let added=0,skip=0,dup=0;
+    for(const r of rows){const g=k=>map[k]?String(r[map[k]]).trim():"";const base={customer:g("customer")||$("l-customer").value.trim(),billNo:riBill(g("billNo")),store:g("store"),branch:g("branch"),
+        planDate:map.planDate?xlsDate(r[map.planDate]):"",desc:g("desc"),qty:g("qty")||"1",unit:g("unit")||$("l-unit").value};
+      if(!base.billNo||!base.store){if(Object.values(r).some(v=>String(v).trim()))skip++;continue}
+      if(labelQueue.some(q=>q.base.billNo===base.billNo&&q.base.store===base.store)){dup++;continue}
+      if(recv){base.status=ST[1];base.receivedDate=today()}
+      labelQueue.push({base,n:1});added++}
+    renderQueue();
+    note(msg,`นำเข้า ${added} บิลจากไฟล์ ${f.name} แล้ว ตรวจรายการด้านล่าง แล้วกดสร้างป้ายทุกบิล`+(skip?` · ข้าม ${skip} แถว (ไม่มีเลขบิลหรือร้านค้า)`:"")+(dup?` · ข้าม ${dup} บิลที่ซ้ำในรายการ`:""),added?"ok":"err")}
+  catch(err){note(msg,"นำเข้า Excel ไม่สำเร็จ: "+err.message,"err")}});
+$("l-xls-tpl").addEventListener("click",async e=>{e.preventDefault();
+  try{await loadXlsx();const ws=XLSX.utils.aoa_to_sheet([["ลูกค้า","เลขที่บิล","ร้านค้าปลายทาง","สาขา","วันนัดส่ง","ประเภทสินค้า","จำนวน","หน่วย"]]);
+    ws["!cols"]=[24,16,28,14,14,18,10,10].map(w=>({wch:w}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"บิล");
+    XLSX.writeFile(wb,"SCL_นำเข้าบิล_ตัวอย่าง.xlsx")}catch(err){toast(err.message)}});
 function labelText(l){return (l.customer?`<div>ลูกค้า <b>${esc(l.customer)}</b></div>`:"")+(l.billNo?`<div>บิล <b>${esc(l.billNo)}</b> · ${esc(l.seq)}</div><div><b>${esc(l.store)}</b></div><div>${esc(l.branch)}</div><div>${esc(l.qty)} ${esc(l.unit)} ${esc(l.desc)}</div>`:`<div>ป้ายเปล่า ${esc(l.seq)}</div>`)}
 function renderLabels(){$("label-out").hidden=false;$("label-out-title").textContent=`ป้ายที่สร้าง (${lastLabels.length})`;
   $("label-preview").innerHTML=lastLabels.map(l=>`<div class="lbl">${qrSvg(qrPayload(l.code))}<div class="t"><div class="code">${esc(l.code)}</div>${labelText(l)}</div></div>`).join("");updatePrint()}
