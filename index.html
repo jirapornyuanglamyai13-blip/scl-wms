@@ -71,6 +71,10 @@ dl.kv div{min-width:0}dl.kv dt{font-size:12px;color:var(--muted)}dl.kv dd{margin
 details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:14px;margin-top:14px}
 .hist{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:4px;font-size:13px;color:var(--muted)}
 .hist b{color:var(--ink);font-weight:500}
+.queue{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.queue li{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:14px}
+.queue li .q-t{flex:1;min-width:0}.queue li .q-n{color:var(--muted);white-space:nowrap}
+.queue li button{padding:4px 10px}
 .log{list-style:none;margin:0;padding:0;display:grid;gap:6px;max-height:340px;overflow:auto}
 .log li{display:flex;gap:10px;align-items:center;padding:6px 10px;border-radius:6px;background:var(--surface-2);font-size:14px;flex-wrap:wrap}
 .log li.err{background:var(--tdanger);color:var(--danger)}
@@ -215,6 +219,12 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
       <div class="row">
         <label class="f" style="width:150px">จำนวนป้าย<input id="l-count" type="number" min="1" max="200" value="1" required></label>
         <button class="btn primary" type="submit" id="l-submit">สร้างป้าย</button>
+        <button class="btn" type="button" id="l-add">+ เพิ่มบิลนี้ลงรายการ (หลายบิล)</button>
+      </div>
+      <div id="l-queue-box" class="stack" hidden>
+        <h3 style="margin:0" id="l-queue-title">บิลที่รอสร้างป้าย</h3>
+        <ul class="queue" id="l-queue"></ul>
+        <div class="row"><button class="btn primary" type="button" id="l-make-all">สร้างป้ายทุกบิลในรายการ</button><button class="btn" type="button" id="l-clear-q">ล้างรายการ</button></div>
       </div>
       <div id="label-msg" hidden></div>
     </form>
@@ -525,14 +535,42 @@ let lastBatch=null,lastLabels=[];
 $("label-kind").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;labelKind=b.dataset.kind;
   for(const x of $("label-kind").children)x.setAttribute("aria-pressed",x===b);$("label-detail").hidden=labelKind==="blank";
   $("l-bill").required=$("l-store").required=labelKind==="full"});
-$("label-form").addEventListener("submit",async e=>{e.preventDefault();const msg=$("label-msg");const n=Math.max(1,Math.min(200,parseInt($("l-count").value)||1));
-  const base=labelKind==="full"?{customer:$("l-customer").value.trim(),billNo:$("l-bill").value.trim(),store:$("l-store").value.trim(),branch:$("l-branch").value.trim(),planDate:$("l-plan").value,
+function labelCount(){return Math.max(1,Math.min(200,parseInt($("l-count").value)||1))}
+function labelBase(){const base=labelKind==="full"?{customer:$("l-customer").value.trim(),billNo:$("l-bill").value.trim(),store:$("l-store").value.trim(),branch:$("l-branch").value.trim(),planDate:$("l-plan").value,
     desc:$("l-desc").value.trim(),qty:$("l-qty").value,unit:$("l-unit").value}:{};
   if(labelKind==="full"&&$("l-recv").value==="1"){base.status=ST[1];base.receivedDate=today()}
   if(billPhoto&&$("l-photo-attach").checked)base.photo=billPhoto;
+  return base}
+$("label-form").addEventListener("submit",async e=>{e.preventDefault();const msg=$("label-msg");const n=labelCount();const base=labelBase();
   $("l-submit").disabled=true;note(msg,`กำลังสร้าง ${n} ป้าย...`);
-  try{const r=await api("apiCreateLabels",base,n,NAME);lastBatch=r.batch;lastLabels=r.items;renderLabels();note(msg,`สร้าง ${n} ป้ายแล้ว (ชุด ${r.batch})`,"ok")}
+  try{const r=await api("apiCreateLabels",base,n,NAME);lastBatch=r.batch;lastCodes=null;lastLabels=r.items;renderLabels();note(msg,`สร้าง ${n} ป้ายแล้ว (ชุด ${r.batch})`,"ok")}
   catch(err){note(msg,"สร้างไม่สำเร็จ: "+err.message,"err")}finally{$("l-submit").disabled=false}});
+/* หลายบิลพร้อมกัน: เพิ่มบิลลงรายการทีละบิล แล้วสร้างป้ายทุกบิลในครั้งเดียว */
+let labelQueue=[],lastCodes=null;
+function resetBillFields(){for(const id of ["l-bill","l-store","l-branch","l-desc"])$(id).value="";$("l-qty").value="1";$("l-count").value="1";
+  billPhoto=null;$("l-photo-prev").hidden=true;$("l-photo-msg").hidden=true;$("l-ocr-wrap").hidden=true;$("l-ocr").value=""}
+function renderQueue(){const box=$("l-queue-box");box.hidden=!labelQueue.length;
+  const total=labelQueue.reduce((s,q)=>s+q.n,0);
+  $("l-queue-title").textContent=`บิลที่รอสร้างป้าย (${labelQueue.length} บิล · ${total} ป้าย)`;
+  $("l-make-all").textContent=`สร้างป้ายทุกบิลในรายการ (${total} ป้าย)`;
+  $("l-queue").innerHTML=labelQueue.map((q,i)=>{const b=q.base;
+    const t=b.billNo?`บิล <b>${esc(b.billNo)}</b> · ${esc(b.store)}${b.branch?" · "+esc(b.branch):""}${b.customer?` <span style="color:var(--muted)">(${esc(b.customer)})</span>`:""}`:"ป้ายเปล่า";
+    return `<li><span class="q-t">${i+1}. ${t}${b.photo?' <span style="color:var(--muted)">· มีรูปบิล</span>':""}</span><span class="q-n">${q.n} ป้าย</span><button type="button" class="btn" data-i="${i}" aria-label="ลบบิลนี้ออกจากรายการ">ลบ</button></li>`}).join("")}
+$("l-add").addEventListener("click",()=>{if(!$("label-form").reportValidity())return;
+  const base=labelBase();const dup=base.billNo&&labelQueue.some(q=>q.base.billNo===base.billNo);
+  labelQueue.push({base,n:labelCount()});renderQueue();resetBillFields();
+  note($("label-msg"),`เพิ่มบิล ${base.billNo||"ป้ายเปล่า"} ลงรายการแล้ว${dup?" (เลขบิลนี้ซ้ำกับในรายการ ตรวจอีกครั้ง)":""} กรอกบิลถัดไปได้เลย ลูกค้า วันนัดส่ง และหน่วยยังคงไว้`,dup?"err":"ok");
+  if(labelKind==="full")$("l-bill").focus()});
+$("l-queue").addEventListener("click",e=>{const b=e.target.closest("button[data-i]");if(!b)return;labelQueue.splice(+b.dataset.i,1);renderQueue()});
+$("l-clear-q").addEventListener("click",()=>{if(confirm("ล้างบิลทั้งหมดในรายการ?")){labelQueue=[];renderQueue()}});
+$("l-make-all").addEventListener("click",async()=>{if(!labelQueue.length)return;const msg=$("label-msg"),btn=$("l-make-all");btn.disabled=true;$("l-submit").disabled=true;
+  const made=[],total=labelQueue.length;let done=0;
+  try{while(labelQueue.length){const q=labelQueue[0];note(msg,`กำลังสร้างป้าย บิลที่ ${done+1}/${total}...`);
+      const r=await api("apiCreateLabels",q.base,q.n,NAME);made.push(...r.items);labelQueue.shift();done++;renderQueue()}
+    note(msg,`สร้างป้ายครบ ${done} บิล รวม ${made.length} ป้ายแล้ว กดพิมพ์ป้ายได้ทั้งหมดในครั้งเดียว`,"ok")}
+  catch(err){note(msg,`สร้างได้ ${done} บิล บิลที่เหลือยังอยู่ในรายการ กดสร้างอีกครั้งได้ · ${err.message}`,"err")}
+  finally{btn.disabled=false;$("l-submit").disabled=false;renderQueue();
+    if(made.length){lastBatch=null;lastCodes=made.map(l=>l.code);lastLabels=made;renderLabels()}}});
 let billPhoto=null;
 $("l-photo-btn").addEventListener("click",()=>$("l-photo-input").click());
 $("l-photo-input").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;e.target.value="";const msg=$("l-photo-msg");
@@ -550,7 +588,9 @@ $("l-photo-input").addEventListener("change",async e=>{const f=e.target.files&&e
 function labelText(l){return (l.customer?`<div>ลูกค้า <b>${esc(l.customer)}</b></div>`:"")+(l.billNo?`<div>บิล <b>${esc(l.billNo)}</b> · ${esc(l.seq)}</div><div><b>${esc(l.store)}</b></div><div>${esc(l.branch)}</div><div>${esc(l.qty)} ${esc(l.unit)} ${esc(l.desc)}</div>`:`<div>ป้ายเปล่า ${esc(l.seq)}</div>`)}
 function renderLabels(){$("label-out").hidden=false;$("label-out-title").textContent=`ป้ายที่สร้าง (${lastLabels.length})`;
   $("label-preview").innerHTML=lastLabels.map(l=>`<div class="lbl">${qrSvg(qrPayload(l.code))}<div class="t"><div class="code">${esc(l.code)}</div>${labelText(l)}</div></div>`).join("");updatePrint()}
-function updatePrint(){if(lastBatch)$("l-print").href=API_URL+"?print="+encodeURIComponent(lastBatch)+"&paper="+$("l-paper").value}
+function updatePrint(){const paper="&paper="+$("l-paper").value;
+  if(lastCodes)$("l-print").href=API_URL+"?codes="+encodeURIComponent(lastCodes.join(","))+paper;
+  else if(lastBatch)$("l-print").href=API_URL+"?print="+encodeURIComponent(lastBatch)+paper}
 $("l-paper").addEventListener("change",updatePrint);
 
 /* ---------- list ---------- */
