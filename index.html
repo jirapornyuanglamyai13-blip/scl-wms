@@ -90,6 +90,7 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white
 th{font-size:12px;color:var(--muted);font-weight:600;background:var(--surface-2)}
 /* รายการทั้งหมด: ใช้ความกว้างเต็มจอ และย่อคอลัมน์ให้ตารางพอดีหน้า */
 body.wide .wrap{max-width:none}
+body.cust .staff{display:none!important}.cust-tag{font-weight:600;color:var(--s4)}
 #view-list th,#view-list td{padding:7px 5px}#view-list td{font-size:13px}#view-list td .pill{font-size:11.5px;padding:2px 7px}
 #view-list td.code{font-size:12.5px;letter-spacing:0}#view-list td .t-edit{padding:3px 8px!important;font-size:12.5px}
 #view-list td.ell{max-width:130px;overflow:hidden;text-overflow:ellipsis}#view-list td.ell+td+td.ell{max-width:170px}
@@ -145,7 +146,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
     <div class="who" id="who"></div>
     <nav>
       <button data-tab="scan" aria-selected="true">สแกน</button>
-      <button data-tab="labels" aria-selected="false">สร้างป้าย QR</button>
+      <button data-tab="labels" aria-selected="false" class="staff">สร้างป้าย QR</button>
       <button data-tab="list" aria-selected="false">รายการทั้งหมด</button>
       <button data-tab="kpi" aria-selected="false">KPI</button>
     </nav>
@@ -161,10 +162,10 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
         <div style="font-size:13px;color:var(--muted);margin-bottom:6px">1. เลือกงาน</div>
         <div class="modes" id="modes">
           <button data-mode="view" aria-pressed="true">ดูข้อมูล</button>
-          <button data-mode="1" aria-pressed="false">รับเข้าคลัง</button>
-          <button data-mode="2" aria-pressed="false">ขึ้นรถ</button>
-          <button data-mode="3" aria-pressed="false">ถึงปลายทาง</button>
-          <button data-mode="4" aria-pressed="false">ส่งสำเร็จ</button>
+          <button data-mode="1" aria-pressed="false" class="staff">รับเข้าคลัง</button>
+          <button data-mode="2" aria-pressed="false" class="staff">ขึ้นรถ</button>
+          <button data-mode="3" aria-pressed="false" class="staff">ถึงปลายทาง</button>
+          <button data-mode="4" aria-pressed="false" class="staff">ส่งสำเร็จ</button>
         </div>
       </div>
       <div id="batch-fields" class="grid" hidden></div>
@@ -258,11 +259,11 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
   <!-- LIST -->
   <section id="view-list" class="stack" hidden>
     <div class="card-head">
-      <div><h2>รายการสินค้าทั้งหมด</h2><p class="sub" style="margin:0">กดแถวเพื่อเปิดรายการ · คีย์ข้อมูลผิด กด "แก้ไข" ท้ายแถว · ข้อมูลเต็มอยู่ใน Google Sheet</p></div>
+      <div><h2>รายการสินค้าทั้งหมด</h2><p class="sub" style="margin:0">กดแถวเพื่อเปิดรายการ<span class="staff"> · คีย์ข้อมูลผิด กด "แก้ไข" ท้ายแถว · ข้อมูลเต็มอยู่ใน Google Sheet</span></p></div>
       <button class="btn" id="refresh-btn" type="button">รีเฟรช</button>
     </div>
     <div class="counts" id="counts"></div>
-    <div class="panel stack" id="trip-panel">
+    <div class="panel stack staff" id="trip-panel">
       <div class="row">
         <label class="f" style="flex:1 1 200px">เลขเที่ยว (จัดเข้าเที่ยว / ปิดเที่ยว)<input id="t-trip" placeholder="เช่น 691100127" style="text-transform:uppercase"></label>
         <button class="btn" type="button" id="t-plan">จัดบิลที่เลือกเข้าเที่ยวนี้</button>
@@ -278,7 +279,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
     </div>
     <div class="tablebox">
       <table>
-        <thead><tr><th><input type="checkbox" id="t-all" style="width:auto" aria-label="เลือกทั้งหมดที่ยังไม่ขึ้นรถ"></th><th>รหัส</th><th>สถานะ</th><th>ลูกค้า</th><th>เลขบิล</th><th>ร้านค้า</th><th>จำนวน</th><th>รับเข้า</th><th>เที่ยว</th><th>ออกรถ</th><th>ถึง</th><th>นัดส่ง</th><th>ส่งสำเร็จ</th><th></th></tr></thead>
+        <thead><tr><th class="staff"><input type="checkbox" id="t-all" style="width:auto" aria-label="เลือกทั้งหมดที่ยังไม่ขึ้นรถ"></th><th>รหัส</th><th>สถานะ</th><th>ลูกค้า</th><th>เลขบิล</th><th>ร้านค้า</th><th>จำนวน</th><th>รับเข้า</th><th>เที่ยว</th><th>ออกรถ</th><th>ถึง</th><th>นัดส่ง</th><th>ส่งสำเร็จ</th><th class="staff"></th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
       <div id="list-empty" class="empty">กำลังโหลด...</div>
@@ -301,7 +302,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
       <label class="f" style="width:170px">ถึง<input id="kpi-to" type="date"></label>
       <button class="btn primary" id="kpi-run" type="button">ดึง KPI</button>
     </div>
-    <div class="panel row">
+    <div class="panel row staff">
       <label class="f" style="flex:1 1 320px">ส่งอีเมลรายงานถึง<input id="kpi-mail-to" type="text" inputmode="email" placeholder="อีเมลผู้รับ ถ้าหลายคนคั่นด้วยเครื่องหมาย ,"></label>
       <label style="display:flex;gap:6px;align-items:center;font-size:14px;color:var(--muted);padding-bottom:10px"><input id="kpi-mail-att" type="checkbox" checked style="width:auto">แนบไฟล์ Excel</label>
       <button class="btn" id="kpi-mail" type="button" disabled>ส่งอีเมลรายงาน</button>
@@ -348,14 +349,20 @@ function qrSvg(text){const q=qrcode(0,"M");q.addData(text);q.make();const n=q.ge
 $("g-name").value=load("scl_name")||"";
 $("gate-form").addEventListener("submit",async e=>{e.preventDefault();PIN=$("g-pin").value.trim();NAME=$("g-name").value.trim();
   $("g-btn").disabled=true;
-  try{await api("apiCheck");store("scl_pin",PIN);store("scl_name",NAME);enter()}
+  try{setRole(await api("apiCheck"));store("scl_pin",PIN);store("scl_name",NAME);enter()}
   catch(err){note($("g-msg"),err.message,"err")}finally{$("g-btn").disabled=false}});
-function enter(){$("gate").hidden=true;$("who").innerHTML=`${esc(NAME)}<button type="button" id="logout">ออก</button>`;
+function enter(){$("gate").hidden=true;$("who").innerHTML=`${isCust()?`<span class="cust-tag">ลูกค้า · ${esc(CUST)}</span> `:""}${esc(NAME)}<button type="button" id="logout">ออก</button>`;
   $("logout").onclick=()=>{store("scl_pin",null);location.reload()};
+  if(isCust()&&!START_CODE)showTab("list");
   if(START_CODE&&CODE_RE.test(START_CODE)){setMode("view");lookup(START_CODE)}
   api("apiList").then(l=>{items=l;showStuck();showDue();popAlerts(true)}).catch(()=>{});
   setInterval(()=>api("apiList").then(l=>{items=l;showStuck();showDue();popAlerts(false)}).catch(()=>{}),5*60*1000)}
-(async()=>{const p=load("scl_pin"),n=load("scl_name");if(p&&n){PIN=p;NAME=n;try{await api("apiCheck");enter()}catch(e){PIN=""}}})();
+(async()=>{const p=load("scl_pin"),n=load("scl_name");if(p&&n){PIN=p;NAME=n;try{setRole(await api("apiCheck"));enter()}catch(e){PIN=""}}})();
+/* ---------- สิทธิ์: พนักงาน / ลูกค้า (ดูอย่างเดียว) ---------- */
+let ROLE="staff",CUST="";
+const isCust=()=>ROLE==="customer";
+function setRole(a){ROLE=a&&a.role==="customer"?"customer":"staff";CUST=ROLE==="customer"?String(a.customer||""):"";
+  document.body.classList.toggle("cust",isCust());if(isCust())setMode("view")}
 
 /* ---------- tabs ---------- */
 function showTab(t){document.body.classList.toggle("wide",t==="list");for(const b of document.querySelectorAll("nav button"))b.setAttribute("aria-selected",b.dataset.tab===t);
@@ -371,7 +378,7 @@ const BATCH_FIELDS={
 };
 function prefs(){try{return JSON.parse(load("scl_scan")||"{}")}catch(e){return {}}}
 function savePrefs(){const v={};for(const el of $("batch-fields").querySelectorAll("input,select"))v[el.id]=el.value;store("scl_scan",JSON.stringify({mode,day:today(),v}))}
-function setMode(m){mode=String(m);for(const b of $("modes").children)b.setAttribute("aria-pressed",b.dataset.mode===mode);
+function setMode(m){if(isCust())m="view";mode=String(m);for(const b of $("modes").children)b.setAttribute("aria-pressed",b.dataset.mode===mode);
   const bf=$("batch-fields");bf.innerHTML="";const isBatch=mode!=="view";bf.hidden=!isBatch;$("batch-log-wrap").hidden=!isBatch;$("item-view").hidden=isBatch;
   const pr=prefs(),keep=pr.v||{};
   for(const [id,lab,type,def] of BATCH_FIELDS[mode]||[]){
@@ -443,18 +450,19 @@ async function lookup(code,edit){
   if(!CODE_RE.test(code)){beep(false);showResult(false,`<span>"${esc(code)}" ไม่ใช่ป้าย SCL</span>`);return}
   note($("scan-msg"),`อ่านได้ ${code} กำลังดึงข้อมูล...`);
   try{const r=await api("apiGet",code);$("scan-msg").hidden=true;beep(true);renderItem(code,r.item,r.log);
-    showResult(!!r.item,r.item?`<span class="code">${esc(code)}</span>${pill(r.item.status)}<span>${esc(r.item.store)} · บิล ${esc(r.item.billNo||"-")}</span>`:`<span class="code">${esc(code)}</span><span>ป้ายเปล่า ยังไม่มีข้อมูล กรอกด้านล่างเพื่อรับเข้า</span>`);
+    showResult(!!r.item,r.item?`<span class="code">${esc(code)}</span>${pill(r.item.status)}<span>${esc(r.item.store)} · บิล ${esc(r.item.billNo||"-")}</span>`:`<span class="code">${esc(code)}</span><span>${isCust()?"ไม่พบรหัสนี้ในรายการของท่าน":"ป้ายเปล่า ยังไม่มีข้อมูล กรอกด้านล่างเพื่อรับเข้า"}</span>`);
     $("item-view").scrollIntoView({behavior:"smooth",block:"start"});if(edit&&r.item)openEdit()}
   catch(err){beep(false);note($("scan-msg"),"ดึงข้อมูลไม่สำเร็จ: "+err.message,"err")}}
 
 function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
+  if(!it&&isCust()){box.innerHTML=`<div class="panel"><div class="card-head"><span class="code">${esc(code)}</span></div><p class="sub" style="margin:10px 0">ไม่พบรหัสนี้ในรายการสินค้าของท่าน</p></div>`;return}
   if(!it){box.innerHTML=`<div class="panel"><div class="card-head"><span class="code">${esc(code)}</span>${pill(ST[0])}</div>
     <p class="sub" style="margin:10px 0">ป้ายเปล่า กรอกข้อมูลเพื่อรับเข้าคลัง</p>${editForm({},true)}</div>`;bindEdit(code,true,null);return}
   const i=si(it.status);
   const dates=[it.createdAt,it.receivedDate,it.shipDate,it.arrivedDate,it.deliveredDate];
   const track=ST.map((s,k)=>`<div class="step ${k<i?"done":k===i?"now done":""}"><b>${s}</b>${k<=i?"&#10003; "+fmtD(dates[k]):"ยังไม่อัปเดต"}</div>`).join("");
   box.innerHTML=`<div class="panel">
-    <div class="card-head"><span class="code">${esc(code)}</span><div class="row" style="align-items:center">${pill(it.status)}<button type="button" class="btn" id="edit-open">แก้ไขข้อมูล</button></div></div>
+    <div class="card-head"><span class="code">${esc(code)}</span><div class="row" style="align-items:center">${pill(it.status)}<button type="button" class="btn staff" id="edit-open">แก้ไขข้อมูล</button></div></div>
     <dl class="kv">
       <div><dt>ลูกค้า (เจ้าของสินค้า)</dt><dd>${esc(it.customer||"-")}</dd></div>
       <div><dt>เลขที่บิล</dt><dd>${esc(it.billNo||"-")}</dd></div>
@@ -468,12 +476,12 @@ function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
       ${it.note?`<div style="grid-column:1/-1"><dt>หมายเหตุ</dt><dd>${esc(it.note)}</dd></div>`:""}
     </dl>
     <div class="track">${track}</div>
-    ${i<4?nextForm(i+1,it):`<div class="notice ok" style="margin-top:16px">ส่งสินค้าสำเร็จแล้ว ${fmtD(it.deliveredDate)}</div>`}
-    <details id="edit-det"><summary>แก้ไขข้อมูลบิล (กรณีคีย์ผิด) / เปลี่ยนสถานะ</summary>${editForm(it,false)}</details>
-    <details><summary>ประวัติ (${log.length})</summary><ul class="hist">${log.map(x=>`<li><b>${esc(x.action)}</b> ${esc(x.detail)} · ${esc(x.at)} · ${esc(x.by)}</li>`).join("")||"<li>ยังไม่มีประวัติ</li>"}</ul></details>
-    <div class="item-photo"><div class="item-photo-img">${it.photo?"<span class=\"sub\">กำลังโหลดรูป...</span>":""}</div>
+    ${i<4?`<div class="staff">${nextForm(i+1,it)}</div>`:`<div class="notice ok" style="margin-top:16px">ส่งสินค้าสำเร็จแล้ว ${fmtD(it.deliveredDate)}</div>`}
+    <details id="edit-det" class="staff"><summary>แก้ไขข้อมูลบิล (กรณีคีย์ผิด) / เปลี่ยนสถานะ</summary>${editForm(it,false)}</details>
+    <details><summary>ประวัติ (${log.length})</summary><ul class="hist">${log.map(x=>`<li><b>${esc(x.action)}</b> ${esc(x.detail)} · ${esc(x.at)}${x.by?" · "+esc(x.by):""}</li>`).join("")||"<li>ยังไม่มีประวัติ</li>"}</ul></details>
+    <div class="item-photo staff"><div class="item-photo-img">${it.photo?"<span class=\"sub\">กำลังโหลดรูป...</span>":""}</div>
       <div class="row"><button type="button" class="btn item-photo-btn">${it.photo?"ถ่ายรูปใหม่แทน":"ถ่ายรูปแนบกับป้ายนี้"}</button><input type="file" class="hidden-file item-photo-input" accept="image/*" capture="environment" tabindex="-1"></div></div>
-    <div class="row" style="margin-top:14px"><a class="btn" target="_blank" rel="noopener" href="${esc(API_URL+"?codes="+code)}">พิมพ์ป้ายใบนี้ซ้ำ</a><button type="button" class="btn" id="item-del" style="color:var(--danger)">ลบรายการนี้</button></div>
+    <div class="row staff" style="margin-top:14px"><a class="btn" target="_blank" rel="noopener" href="${esc(API_URL+"?codes="+code)}">พิมพ์ป้ายใบนี้ซ้ำ</a><button type="button" class="btn" id="item-del" style="color:var(--danger)">ลบรายการนี้</button></div>
   </div>`;
   if(i<4)bindNext(code,i+1);bindEdit(code,false,it);bindPhoto(code,it);$("edit-open").onclick=openEdit;
   $("item-del").onclick=async()=>{if(await delItems([it],"ลบจากหน้าข้อมูลบิล")){$("item-view").hidden=true;$("item-view").innerHTML=""}}}
@@ -507,7 +515,7 @@ async function shrink(file,max,q){const url=URL.createObjectURL(file);
     const k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)),c=document.createElement("canvas");
     c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
     return c.toDataURL("image/jpeg",q)}finally{URL.revokeObjectURL(url)}}
-function bindPhoto(code,it){const box=$("item-view"),holder=box.querySelector(".item-photo-img"),inp=box.querySelector(".item-photo-input"),btn=box.querySelector(".item-photo-btn");
+function bindPhoto(code,it){if(isCust())return;const box=$("item-view"),holder=box.querySelector(".item-photo-img"),inp=box.querySelector(".item-photo-input"),btn=box.querySelector(".item-photo-btn");
   if(it.photo)api("apiPhoto",it.photo).then(d=>{if(holder.isConnected)holder.innerHTML='<img alt="รูปที่แนบกับป้าย '+esc(code)+'" src="'+d+'">'}).catch(()=>{if(holder.isConnected)holder.textContent="โหลดรูปไม่ได้"});
   btn.addEventListener("click",()=>inp.click());
   inp.addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;e.target.value="";btn.disabled=true;btn.textContent="กำลังอัปโหลดรูป...";
@@ -724,13 +732,13 @@ function filtered(){const q=$("q").value.trim().toLowerCase(),qd=$("q-date").val
 function renderList(){const c=[0,0,0,0,0];for(const it of items)c[si(it.status)]++;
   const nStuck=items.filter(isStuck).length;
   $("counts").innerHTML=`<button data-s="-1" aria-pressed="${filterStatus===-1}"><small>ทั้งหมด</small><strong>${items.length}</strong></button>`+ST.map((s,k)=>`<button data-s="${k}" aria-pressed="${filterStatus===k}"><small>${s}</small><strong>${c[k]}</strong></button>`).join("")+
-    `<button data-s="-2" aria-pressed="${filterStatus===-2}" style="color:var(--danger)"><small>ค้างโกดังเกิน ${STUCK_DAYS} วัน</small><strong>${nStuck}</strong></button>`+
-    `<button data-s="-3" aria-pressed="${filterStatus===-3}" style="color:var(--s2)"><small>ใกล้วันนัดส่ง</small><strong>${items.filter(isDueSoon).length}</strong></button>`+
-    `<button data-s="-4" aria-pressed="${filterStatus===-4}" style="color:var(--danger)"><small>ตกเที่ยวรถ</small><strong>${items.filter(isMissed).length}</strong></button>`+
-    `<button data-s="-5" aria-pressed="${filterStatus===-5}" style="color:var(--s2)"><small>ตัดรอบ ${CUTOFF_HOUR}:00 ยังไม่ขึ้นรถ</small><strong>${items.filter(isCutoff).length}</strong></button>`;
+    `<button class="staff" data-s="-2" aria-pressed="${filterStatus===-2}" style="color:var(--danger)"><small>ค้างโกดังเกิน ${STUCK_DAYS} วัน</small><strong>${nStuck}</strong></button>`+
+    `<button class="staff" data-s="-3" aria-pressed="${filterStatus===-3}" style="color:var(--s2)"><small>ใกล้วันนัดส่ง</small><strong>${items.filter(isDueSoon).length}</strong></button>`+
+    `<button class="staff" data-s="-4" aria-pressed="${filterStatus===-4}" style="color:var(--danger)"><small>ตกเที่ยวรถ</small><strong>${items.filter(isMissed).length}</strong></button>`+
+    `<button class="staff" data-s="-5" aria-pressed="${filterStatus===-5}" style="color:var(--s2)"><small>ตัดรอบ ${CUTOFF_HOUR}:00 ยังไม่ขึ้นรถ</small><strong>${items.filter(isCutoff).length}</strong></button>`;
   showStuck();showDue();
   const rows=filtered();if(filterStatus===-3)rows.sort((a,b)=>daysUntil(a.planDate)-daysUntil(b.planDate));
-  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td>${si(it.status)<2?`<input type="checkbox" class="t-chk" value="${esc(it.code)}" style="width:auto"${selCodes.has(it.code)?" checked":""}>`:""}</td><td class="code">${esc(it.code)}${isMissed(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ตกเที่ยว ${esc(it.planTrip)}</span>`:""}</td><td>${pill(it.status)}</td><td class="ell" title="${esc(it.customer)}">${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td class="ell" title="${esc(it.store)}">${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}${isStuck(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ค้าง ${daysSince(it.receivedDate||it.createdAt)} วัน</span>`:""}</td><td>${esc(it.trip)}${!it.trip&&it.planTrip?`<span style="color:var(--muted)">แผน ${esc(it.planTrip)}</span>`:""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}${duePill(it)}</td><td>${fmtD(it.deliveredDate)}</td><td><button type="button" class="btn t-edit" style="padding:4px 10px">แก้ไข</button></td></tr>`).join("");
+  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td class="staff">${si(it.status)<2?`<input type="checkbox" class="t-chk" value="${esc(it.code)}" style="width:auto"${selCodes.has(it.code)?" checked":""}>`:""}</td><td class="code">${esc(it.code)}${isMissed(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ตกเที่ยว ${esc(it.planTrip)}</span>`:""}</td><td>${pill(it.status)}</td><td class="ell" title="${esc(it.customer)}">${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td class="ell" title="${esc(it.store)}">${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}${isStuck(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ค้าง ${daysSince(it.receivedDate||it.createdAt)} วัน</span>`:""}</td><td>${esc(it.trip)}${!it.trip&&it.planTrip?`<span style="color:var(--muted)">แผน ${esc(it.planTrip)}</span>`:""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}${duePill(it)}</td><td>${fmtD(it.deliveredDate)}</td><td class="staff"><button type="button" class="btn t-edit" style="padding:4px 10px">แก้ไข</button></td></tr>`).join("");
   $("list-empty").hidden=rows.length>0;$("list-empty").textContent=items.length?"ไม่พบรายการตามเงื่อนไข":"ยังไม่มีสินค้า เริ่มจากแท็บ สร้างป้าย QR"}
 $("counts").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;filterStatus=+b.dataset.s;renderList()});
 /* ---------- stuck in warehouse alert ---------- */
@@ -738,7 +746,7 @@ const STUCK_DAYS=1;
 function daysSince(d){const s=String(d||"").slice(0,10);if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s))return 0;
   const a=new Date(s+"T00:00:00"),b=new Date(today()+"T00:00:00");return Math.round((b-a)/86400000)}
 function isStuck(it){return it.status===ST[1]&&daysSince(it.receivedDate||it.createdAt)>STUCK_DAYS}
-function showStuck(){const n=items.filter(isStuck).length,bar=$("stuck-bar");bar.hidden=!n;
+function showStuck(){const n=isCust()?0:items.filter(isStuck).length,bar=$("stuck-bar");bar.hidden=!n;
   if(n)bar.textContent=`แจ้งเตือน: สินค้าค้างโกดังยังไม่ขึ้นรถเกิน ${STUCK_DAYS} วัน ${n} รายการ (กดเพื่อดูรายการ)`}
 $("stuck-bar").addEventListener("click",()=>{filterStatus=-2;showTab("list")});
 /* ---------- due date (planDate) alert ---------- */
@@ -749,7 +757,7 @@ function isDueSoon(it){return it.status===ST[1]&&validD(it.planDate)&&daysUntil(
 function dueText(n){return n<0?`เลยนัด ${-n} วัน`:n===0?"นัดวันนี้":`อีก ${n} วัน`}
 function duePill(it){if(!isDueSoon(it))return "";const n=daysUntil(it.planDate);
   return ` <span class="pill" style="color:${n<0?"var(--danger)":"var(--s2)"};background:${n<0?"var(--tdanger)":"var(--t2)"}">${dueText(n)}</span>`}
-function showDue(){const n=items.filter(isDueSoon).length,bar=$("due-bar");bar.hidden=!n;
+function showDue(){const n=isCust()?0:items.filter(isDueSoon).length,bar=$("due-bar");bar.hidden=!n;
   if(n)bar.textContent=`ใกล้วันที่นัดส่ง: สินค้ายังไม่ขึ้นรถ และเหลือไม่เกิน ${DUE_DAYS} วัน ถึงวันที่นัดส่ง ${n} รายการ (กดเพื่อดูรายการ)`}
 $("due-bar").addEventListener("click",()=>{filterStatus=-3;showTab("list")});
 /* ---------- popup alert (in page + device notification) ---------- */
@@ -774,7 +782,7 @@ $("t-close").addEventListener("click",async()=>{const trip=$("t-trip").value.tri
   btn.disabled=true;try{const r=await api("apiCloseTrip",trip,NAME);
     note($("t-msg"),r.missed.length?`เที่ยว ${r.trip}: ขึ้นรถแล้ว ${r.loaded}/${r.planned} บิล · ตกเที่ยว ${r.missed.length} บิล (ส่งอีเมลแจ้งแล้ว): ${r.missed.map(o=>(o.billNo||o.code)+" "+(o.store||"")).join(", ")}`:`เที่ยว ${r.trip}: ขึ้นรถครบ ${r.planned} บิล ไม่มีบิลตกเที่ยว`,r.missed.length?"err":"ok");
     await reloadList();popAlerts(true);if(r.missed.length){filterStatus=-4;renderList()}}catch(err){note($("t-msg"),err.message,"err")}finally{btn.disabled=false}});
-function popAlerts(first){const st=items.filter(isStuck),du=items.filter(isDueSoon),ms=items.filter(isMissed),co=items.filter(isCutoff);
+function popAlerts(first){if(isCust())return;const st=items.filter(isStuck),du=items.filter(isDueSoon),ms=items.filter(isMissed),co=items.filter(isCutoff);
   const ids=ms.map(it=>"M"+it.code).concat(co.map(it=>"C"+it.code),st.map(it=>it.code),du.map(it=>it.code)).sort().join(",");
   const prev=load("scl_alert_seen")||"";
   if(!ids){store("scl_alert_seen","");return}
@@ -839,6 +847,7 @@ function renderKpi(k){const t=k.total,out=$("kpi-out");out.hidden=false;
   `<p class="sub" style="margin:0">On-time % = บิลที่ส่งสำเร็จไม่เกินวันนัด ÷ บิลที่ส่งสำเร็จในช่วงนี้และมีวันนัด · ขึ้นรถทันเวลา % = ขึ้นรถภายใน ${STUCK_DAYS} วันหลังรับเข้า ÷ บิลที่ขึ้นรถในช่วงนี้ · Lead time คิดเป็นวัน</p>`}
 const normC=s=>String(s||"").replace(/ +/g," ").trim();
 function fillKpiCust(){const sel=$("kpi-cust"),cur=sel.value;
+  if(isCust()){sel.innerHTML=`<option value="${esc(CUST)}">${esc(CUST)}</option>`;sel.value=CUST;sel.disabled=true;return}
   const names=[...new Set(items.map(it=>normC(it.customer)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"th"));
   sel.innerHTML=`<option value="">ทุกลูกค้า</option>`+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join("");
   if(names.includes(cur))sel.value=cur}
