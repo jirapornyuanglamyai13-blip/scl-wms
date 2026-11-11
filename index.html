@@ -267,6 +267,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
         <label class="f" style="flex:1 1 200px">เลขเที่ยว (จัดเข้าเที่ยว / ปิดเที่ยว)<input id="t-trip" placeholder="เช่น 691100127" style="text-transform:uppercase"></label>
         <button class="btn" type="button" id="t-plan">จัดบิลที่เลือกเข้าเที่ยวนี้</button>
         <button class="btn primary" type="button" id="t-close">ปิดเที่ยว: ตรวจบิลตกเที่ยว</button>
+        <button class="btn" type="button" id="t-del" style="color:var(--danger)">ลบรายการที่เลือก</button>
       </div>
       <p class="sub" style="margin:0" id="t-sel">ติ๊กเลือกบิลในตาราง (เฉพาะบิลที่ยังไม่ขึ้นรถ) แล้วกด "จัดบิลที่เลือกเข้าเที่ยวนี้" · เมื่อรถออก กด "ปิดเที่ยว" ระบบจะเตือนบิลที่จัดไว้แต่ไม่ได้สแกนขึ้นรถทันที</p>
       <div id="t-msg" hidden></div>
@@ -472,9 +473,32 @@ function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
     <details><summary>ประวัติ (${log.length})</summary><ul class="hist">${log.map(x=>`<li><b>${esc(x.action)}</b> ${esc(x.detail)} · ${esc(x.at)} · ${esc(x.by)}</li>`).join("")||"<li>ยังไม่มีประวัติ</li>"}</ul></details>
     <div class="item-photo"><div class="item-photo-img">${it.photo?"<span class=\"sub\">กำลังโหลดรูป...</span>":""}</div>
       <div class="row"><button type="button" class="btn item-photo-btn">${it.photo?"ถ่ายรูปใหม่แทน":"ถ่ายรูปแนบกับป้ายนี้"}</button><input type="file" class="hidden-file item-photo-input" accept="image/*" capture="environment" tabindex="-1"></div></div>
-    <div style="margin-top:14px"><a class="btn" target="_blank" rel="noopener" href="${esc(API_URL+"?codes="+code)}">พิมพ์ป้ายใบนี้ซ้ำ</a></div>
+    <div class="row" style="margin-top:14px"><a class="btn" target="_blank" rel="noopener" href="${esc(API_URL+"?codes="+code)}">พิมพ์ป้ายใบนี้ซ้ำ</a><button type="button" class="btn" id="item-del" style="color:var(--danger)">ลบรายการนี้</button></div>
   </div>`;
-  if(i<4)bindNext(code,i+1);bindEdit(code,false,it);bindPhoto(code,it);$("edit-open").onclick=openEdit}
+  if(i<4)bindNext(code,i+1);bindEdit(code,false,it);bindPhoto(code,it);$("edit-open").onclick=openEdit;
+  $("item-del").onclick=async()=>{if(await delItems([it],"ลบจากหน้าข้อมูลบิล")){$("item-view").hidden=true;$("item-view").innerHTML=""}}}
+/* ---------- ลบรายการ ---------- */
+const desc1=x=>`${x.code} · บิล ${x.billNo||"-"} · ${x.store||"ป้ายเปล่า"} (${x.status||ST[0]})`;
+async function delItems(list,reason,ask=true){if(!list.length)return false;
+  const loaded=list.filter(x=>si(x.status)>=2);
+  if(ask&&!confirm(`ลบ ${list.length} รายการนี้ออกจากระบบ?\n\n${list.slice(0,15).map(desc1).join("\n")}${list.length>15?`\n...อีก ${list.length-15} รายการ`:""}`+
+    (loaded.length?`\n\nคำเตือน: มี ${loaded.length} รายการที่ขึ้นรถแล้ว ประวัติการขนส่งจะหายจากหน้ารายการและ KPI`:"")+
+    `\n\nป้าย QR ของรายการที่ลบจะสแกนไม่เจอ (ข้อมูลเดิมยังเก็บไว้ในชีต Log)`))return false;
+  try{const r=await api("apiDelete",list.map(x=>x.code),NAME,reason||"");const gone=new Set(r.deleted);
+    items=items.filter(x=>!gone.has(x.code));for(const c of gone)selCodes.delete(c);
+    if(lastLabels.length){lastLabels=lastLabels.filter(x=>!gone.has(x.code));if(lastCodes)lastCodes=lastCodes.filter(c=>!gone.has(c));if(!$("label-out").hidden)renderLabels()}
+    if(!$("view-list").hidden){renderList();showSel()}
+    toast(`ลบแล้ว ${gone.size} รายการ`);return true}
+  catch(err){toast("ลบไม่สำเร็จ: "+err.message);return false}}
+/* สร้างป้ายใหม่ของบิลที่มีอยู่แล้ว (คีย์ผิดแล้วสร้างใหม่) เสนอให้ลบป้ายเดิม */
+async function freshItems(){try{items=await api("apiList")}catch(e){}}
+async function offerReplace(made){const mine=new Set(made.map(x=>x.code)),bills=new Set(made.map(x=>x.billNo).filter(Boolean));
+  const old=items.filter(x=>!mine.has(x.code)&&x.billNo&&bills.has(x.billNo));if(!old.length)return;
+  const can=old.filter(x=>si(x.status)<2),stay=old.filter(x=>si(x.status)>=2);
+  if(stay.length)toast(`บิล ${[...new Set(stay.map(x=>x.billNo))].join(", ")} มีรายการเดิมที่ขึ้นรถแล้ว ไม่ลบให้อัตโนมัติ`);
+  if(!can.length)return;
+  if(confirm(`บิลที่เพิ่งสร้างป้าย มีรายการเดิมในระบบ ${can.length} รายการ (QR เก่า)\n\n${can.map(desc1).join("\n")}\n\nลบรายการเดิมออก แล้วใช้ป้ายใหม่แทนไหม?\n(ลบแล้วป้าย QR เก่าจะสแกนไม่เจอ ให้แกะออกจากสินค้า)`))
+    await delItems(can,"สร้างป้ายใหม่แทน",false)}
 function openEdit(){const d=$("edit-det");if(!d)return;d.open=true;setTimeout(()=>{d.scrollIntoView({behavior:"smooth",block:"start"});$("e-customer").focus({preventScroll:true})},50)}
 
 /* ---------- photos ---------- */
@@ -572,7 +596,7 @@ function labelBase(){const base=labelKind==="full"?{customer:$("l-customer").val
   return base}
 $("label-form").addEventListener("submit",async e=>{e.preventDefault();const msg=$("label-msg");const n=labelCount();const base=labelBase();
   $("l-submit").disabled=true;note(msg,`กำลังสร้าง ${n} ป้าย...`);
-  try{const r=await api("apiCreateLabels",base,n,NAME);lastBatch=r.batch;lastCodes=null;lastLabels=r.items;items.push(...r.items);fillLabelLists();renderLabels();note(msg,`สร้าง ${n} ป้ายแล้ว (ชุด ${r.batch})`,"ok")}
+  try{await freshItems();const r=await api("apiCreateLabels",base,n,NAME);lastBatch=r.batch;lastCodes=null;lastLabels=r.items;items.push(...r.items);fillLabelLists();renderLabels();note(msg,`สร้าง ${n} ป้ายแล้ว (ชุด ${r.batch})`,"ok");await offerReplace(r.items)}
   catch(err){note(msg,"สร้างไม่สำเร็จ: "+err.message,"err")}finally{$("l-submit").disabled=false}});
 /* หลายบิลพร้อมกัน: เพิ่มบิลลงรายการทีละบิล แล้วสร้างป้ายทุกบิลในครั้งเดียว */
 let labelQueue=[],lastCodes=null;
@@ -601,13 +625,13 @@ $("l-queue").addEventListener("click",e=>{const ed=e.target.closest("button[data
   const b=e.target.closest("button[data-i]");if(!b)return;labelQueue.splice(+b.dataset.i,1);renderQueue()});
 $("l-clear-q").addEventListener("click",()=>{if(confirm("ล้างบิลทั้งหมดในรายการ?")){labelQueue=[];renderQueue()}});
 $("l-make-all").addEventListener("click",async()=>{if(!labelQueue.length)return;const msg=$("label-msg"),btn=$("l-make-all");btn.disabled=true;$("l-submit").disabled=true;
-  const made=[],total=labelQueue.length;let done=0;
+  const made=[],total=labelQueue.length;let done=0;await freshItems();
   try{while(labelQueue.length){const q=labelQueue[0];note(msg,`กำลังสร้างป้าย บิลที่ ${done+1}/${total}...`);
       const r=await api("apiCreateLabels",q.base,q.n,NAME);made.push(...r.items);labelQueue.shift();done++;renderQueue()}
     note(msg,`สร้างป้ายครบ ${done} บิล รวม ${made.length} ป้ายแล้ว กดพิมพ์ป้ายได้ทั้งหมดในครั้งเดียว`,"ok")}
   catch(err){note(msg,`สร้างได้ ${done} บิล บิลที่เหลือยังอยู่ในรายการ กดสร้างอีกครั้งได้ · ${err.message}`,"err")}
   finally{btn.disabled=false;$("l-submit").disabled=false;renderQueue();
-    if(made.length){lastBatch=null;lastCodes=made.map(l=>l.code);lastLabels=made;items.push(...made);fillLabelLists();renderLabels()}}});
+    if(made.length){lastBatch=null;lastCodes=made.map(l=>l.code);lastLabels=made;items.push(...made);fillLabelLists();renderLabels();await offerReplace(made)}}});
 let billPhoto=null;
 $("l-photo-btn").addEventListener("click",()=>$("l-photo-input").click());
 $("l-scan-btn").addEventListener("click",()=>$("l-scan-input").click());
@@ -734,6 +758,8 @@ const CUTOFF_HOUR=15;
 function isMissed(it){return !!it.missedTrip&&si(it.status)<2}
 function isCutoff(it){return it.status===ST[1]&&String(it.receivedDate||"").slice(0,10)===today()&&new Date().getHours()>=CUTOFF_HOUR}
 const selCodes=new Set();
+$("t-del").addEventListener("click",()=>{const list=items.filter(x=>selCodes.has(x.code));
+  if(!list.length){toast("ติ๊กเลือกรายการในตารางก่อน แล้วกดลบ");return}delItems(list,"ลบจากหน้ารายการทั้งหมด")});
 function showSel(){$("t-sel").textContent=selCodes.size?`เลือกไว้ ${selCodes.size} บิล`:"ติ๊กเลือกบิลในตาราง (เฉพาะบิลที่ยังไม่ขึ้นรถ) แล้วกด \"จัดบิลที่เลือกเข้าเที่ยวนี้\" · เมื่อรถออก กด \"ปิดเที่ยว\" ระบบจะเตือนบิลที่จัดไว้แต่ไม่ได้สแกนขึ้นรถทันที"}
 $("tbody").addEventListener("change",e=>{const c=e.target.closest(".t-chk");if(!c)return;c.checked?selCodes.add(c.value):selCodes.delete(c.value);showSel()});
 $("t-all").addEventListener("change",e=>{for(const c of document.querySelectorAll(".t-chk")){c.checked=e.target.checked;c.checked?selCodes.add(c.value):selCodes.delete(c.value)}showSel()});
