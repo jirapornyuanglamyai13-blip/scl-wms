@@ -145,7 +145,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
     <div class="brand"><b>SCL WMS</b><span>ติดตามสินค้ารายบิลด้วย QR</span></div>
     <div class="who" id="who"></div>
     <nav>
-      <button data-tab="scan" aria-selected="true">สแกน</button>
+      <button data-tab="scan" aria-selected="true" class="staff">สแกน</button>
       <button data-tab="labels" aria-selected="false" class="staff">สร้างป้าย QR</button>
       <button data-tab="list" aria-selected="false">รายการทั้งหมด</button>
       <button data-tab="kpi" aria-selected="false">KPI</button>
@@ -157,7 +157,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
 <main class="wrap">
   <!-- SCAN -->
   <section id="view-scan" class="stack">
-    <div class="panel stack">
+    <div class="panel stack staff">
       <div>
         <div style="font-size:13px;color:var(--muted);margin-bottom:6px">1. เลือกงาน</div>
         <div class="modes" id="modes">
@@ -462,7 +462,7 @@ function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
   const dates=[it.createdAt,it.receivedDate,it.shipDate,it.arrivedDate,it.deliveredDate];
   const track=ST.map((s,k)=>`<div class="step ${k<i?"done":k===i?"now done":""}"><b>${s}</b>${k<=i?"&#10003; "+fmtD(dates[k]):"ยังไม่อัปเดต"}</div>`).join("");
   box.innerHTML=`<div class="panel">
-    <div class="card-head"><span class="code">${esc(code)}</span><div class="row" style="align-items:center">${pill(it.status)}<button type="button" class="btn staff" id="edit-open">แก้ไขข้อมูล</button></div></div>
+    ${isCust()?`<button type="button" class="btn" style="margin-bottom:12px" onclick="showTab('list')">&larr; กลับไปรายการทั้งหมด</button>`:""}<div class="card-head"><span class="code">${esc(code)}</span><div class="row" style="align-items:center">${pill(it.status)}<button type="button" class="btn staff" id="edit-open">แก้ไขข้อมูล</button></div></div>
     <dl class="kv">
       <div><dt>ลูกค้า (เจ้าของสินค้า)</dt><dd>${esc(it.customer||"-")}</dd></div>
       <div><dt>เลขที่บิล</dt><dd>${esc(it.billNo||"-")}</dd></div>
