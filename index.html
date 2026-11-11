@@ -684,8 +684,26 @@ $("l-customer").addEventListener("input",fillStores);
 $("l-store").addEventListener("change",()=>{if($("l-branch").value.trim())return;const s=$("l-store").value.trim();
   const b=uniqOf(items.filter(i=>String(i.store||"").trim()===s),"branch");if(b.length===1)$("l-branch").value=b[0]});
 /* นำเข้าไฟล์ Excel: 1 แถว = 1 บิล เข้ารายการรอสร้างป้าย */
-const XLS_COLS=[["customer",/ลูกค้า|customer/i],["planDate",/นัด|plan|due/i],["billNo",/บิล|bill|invoice|เลขที่/i],["store",/ร้าน|store|ปลายทาง/i],
-  ["branch",/สาขา|branch|จุดกระจาย/i],["unit",/หน่วย|unit/i],["qty",/จำนวน|qty/i],["desc",/ประเภท|สินค้า|product|type/i]];
+// หัวคอลัมน์ที่รู้จัก: ชื่อตรงตัวก่อน (ฟอร์มของเรา + ไฟล์ติดตามของลูกค้า) แล้วค่อยเดาจากคำ
+const XLS_EXACT={customer:["ลูกค้า","ลูกค้า (เจ้าของสินค้า)","customer"],billNo:["เลขที่บิล","เลขบิล","bill","billno"],
+  store:["ร้านค้าปลายทาง","ร้านค้า","store"],branch:["สาขา","สาขาปลายทาง","สาขา / จุดกระจาย","สาขา/จุดกระจาย","branch"],
+  planDate:["วันนัดส่ง","วันที่นัดส่ง"],desc:["ประเภทสินค้า","สินค้า"],qty:["จำนวน","จำนวนหีบรวม","จำนวนสินค้าในบิล","qty"],unit:["หน่วย","unit"],
+  shopStatus:["สถานะร้านค้ารับ"]};
+const XLS_COLS=[["customer",/ลูกค้า|customer/i],["planDate",/นัด|plan|due/i],["billNo",/บิล|bill|invoice/i],["store",/ร้าน|store/i],
+  ["branch",/สาขา|branch|จุดกระจาย/i],["unit",/หน่วย|unit/i],["qty",/จำนวน|qty/i],["desc",/ประเภท|product|type/i]];
+const hKey=h=>String(h).replace(/\s+/g," ").trim().toLowerCase();
+function xlsMap(headers){const map={},used=new Set();
+  for(const [k,names] of Object.entries(XLS_EXACT)){const h=headers.find(x=>!used.has(x)&&names.includes(hKey(x)));if(h){map[k]=h;used.add(h)}}
+  // เดาเฉพาะช่องที่ยังไม่เจอ และไม่เอาคอลัมน์วันที่อื่น ๆ / เลขที่ใบคุม มาปน
+  for(const h of headers){if(used.has(h))continue;const t=hKey(h);if(/ใบคุม/.test(t))continue;
+    const c=XLS_COLS.find(([k,re])=>!map[k]&&re.test(t)&&(k==="planDate"||!/^วันที่/.test(t)));if(c){map[c[0]]=h;used.add(h)}}
+  return map}
+/* อ่านไฟล์: CSV ที่บันทึกจาก Excel ภาษาไทยอาจเป็นรหัส windows-874 จึงแปลงเป็นข้อความก่อน และอ่านเป็นข้อความทั้งหมด (กันวันที่สลับวัน/เดือน) */
+async function readSheetRows(f){const buf=await f.arrayBuffer();let wb;
+  if(/\.csv$/i.test(f.name)||f.type==="text/csv"){let txt=new TextDecoder("utf-8").decode(buf);if(txt.includes("\uFFFD"))txt=new TextDecoder("windows-874").decode(buf);
+    wb=XLSX.read(txt.replace(/^\uFEFF/,""),{type:"string",raw:true})}
+  else wb=XLSX.read(buf,{type:"array"});
+  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:"",raw:true})}
 function xlsDate(v){if(v==null||v==="")return "";
   if(typeof v==="number"){const d=new Date(Math.round((v-25569)*86400000));return d.toISOString().slice(0,10)}
   const s=String(v).trim();let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
@@ -694,20 +712,22 @@ function xlsDate(v){if(v==null||v==="")return "";
   return `${y}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`}
 $("l-xls-btn").addEventListener("click",()=>$("l-xls-input").click());
 $("l-xls-input").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;e.target.value="";const msg=$("label-msg");
-  try{await loadXlsx();const wb=XLSX.read(await f.arrayBuffer(),{type:"array"}),ws=wb.Sheets[wb.SheetNames[0]];
-    const rows=XLSX.utils.sheet_to_json(ws,{defval:"",raw:true});if(!rows.length)throw new Error("ไม่พบข้อมูลในชีตแรก");
-    const map={};for(const h of Object.keys(rows[0])){const c=XLS_COLS.find(([k,re])=>!map[k]&&re.test(h));if(c)map[c[0]]=h}
-    if(!map.billNo||!map.store)throw new Error("ไม่พบคอลัมน์ เลขที่บิล หรือ ร้านค้าปลายทาง ในแถวหัวตาราง");
+  try{await loadXlsx();const rows=await readSheetRows(f);if(!rows.length)throw new Error("ไม่พบข้อมูลในชีตแรก");
+    const map=xlsMap(Object.keys(rows[0]));
+    if(!map.billNo||!map.store)throw new Error("ไม่พบคอลัมน์ เลขที่บิล หรือ ร้านค้า ในแถวหัวตาราง");
     if(labelKind!=="full")$("label-kind").children[0].click();
-    const recv=$("l-recv").value==="1";let added=0,skip=0,dup=0;
+    const recv=$("l-recv").value==="1";let added=0,skip=0,dup=0,done=0;const odd=[];
     for(const r of rows){const g=k=>map[k]?String(r[map[k]]).trim():"";const base={customer:g("customer")||$("l-customer").value.trim(),billNo:riBill(g("billNo")),store:g("store"),branch:g("branch"),
-        planDate:map.planDate?xlsDate(r[map.planDate]):"",desc:g("desc"),qty:g("qty")||"1",unit:g("unit")||$("l-unit").value};
+        planDate:map.planDate?xlsDate(r[map.planDate]):"",desc:g("desc"),qty:g("qty")||"1",unit:g("unit")||(/หีบ/.test(map.qty||"")?"ลัง":$("l-unit").value)};
       if(!base.billNo||!base.store){if(Object.values(r).some(v=>String(v).trim()))skip++;continue}
+      if(map.shopStatus&&/^รับแล้ว/.test(g("shopStatus"))){done++;continue} // ไฟล์ติดตามลูกค้า: ร้านรับแล้ว ไม่ต้องทำป้าย
       if(labelQueue.some(q=>q.base.billNo===base.billNo&&q.base.store===base.store)){dup++;continue}
+      if(!/^RI\d{8}$/.test(base.billNo))odd.push(base.billNo);
       if(recv){base.status=ST[1];base.receivedDate=today()}
       labelQueue.push({base,n:1});added++}
     renderQueue();
-    note(msg,`นำเข้า ${added} บิลจากไฟล์ ${f.name} แล้ว ตรวจรายการด้านล่าง แล้วกดสร้างป้ายทุกบิล`+(skip?` · ข้าม ${skip} แถว (ไม่มีเลขบิลหรือร้านค้า)`:"")+(dup?` · ข้าม ${dup} บิลที่ซ้ำในรายการ`:""),added?"ok":"err")}
+    note(msg,`นำเข้า ${added} บิลจากไฟล์ ${f.name} แล้ว ตรวจรายการด้านล่าง แล้วกดสร้างป้ายทุกบิล`+(done?` · ข้าม ${done} บิลที่ร้านรับแล้ว`:"")+(skip?` · ข้าม ${skip} แถว (ไม่มีเลขบิลหรือร้านค้า)`:"")+(dup?` · ข้าม ${dup} บิลที่ซ้ำในรายการ`:"")+
+      (odd.length?` · ตรวจเลขบิลที่ไม่ใช่ RI ตามด้วย 8 หลัก: ${odd.slice(0,5).join(", ")}${odd.length>5?" ...":""}`:""),odd.length?"err":added?"ok":"err")}
   catch(err){note(msg,"นำเข้า Excel ไม่สำเร็จ: "+err.message,"err")}});
 $("l-xls-tpl").addEventListener("click",async e=>{e.preventDefault();
   try{await loadXlsx();const ws=XLSX.utils.aoa_to_sheet([["ลูกค้า","เลขที่บิล","ร้านค้าปลายทาง","สาขา","วันนัดส่ง","ประเภทสินค้า","จำนวน","หน่วย"]]);
