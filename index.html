@@ -88,6 +88,11 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:14p
 table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
 th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
 th{font-size:12px;color:var(--muted);font-weight:600;background:var(--surface-2)}
+/* รายการทั้งหมด: ใช้ความกว้างเต็มจอ และย่อคอลัมน์ให้ตารางพอดีหน้า */
+body.wide .wrap{max-width:none}
+#view-list th,#view-list td{padding:7px 5px}#view-list td{font-size:13px}#view-list td .pill{font-size:11.5px;padding:2px 7px}
+#view-list td.code{font-size:12.5px;letter-spacing:0}#view-list td .t-edit{padding:3px 8px!important;font-size:12.5px}
+#view-list td.ell{max-width:130px;overflow:hidden;text-overflow:ellipsis}#view-list td.ell+td+td.ell{max-width:170px}
 tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
 .labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .lbl{border:1px dashed var(--muted);border-radius:6px;padding:10px;display:grid;grid-template-columns:96px 1fr;gap:10px;background:#fff;color:#111;min-width:0}
@@ -352,7 +357,7 @@ function enter(){$("gate").hidden=true;$("who").innerHTML=`${esc(NAME)}<button t
 (async()=>{const p=load("scl_pin"),n=load("scl_name");if(p&&n){PIN=p;NAME=n;try{await api("apiCheck");enter()}catch(e){PIN=""}}})();
 
 /* ---------- tabs ---------- */
-function showTab(t){for(const b of document.querySelectorAll("nav button"))b.setAttribute("aria-selected",b.dataset.tab===t);
+function showTab(t){document.body.classList.toggle("wide",t==="list");for(const b of document.querySelectorAll("nav button"))b.setAttribute("aria-selected",b.dataset.tab===t);
   for(const v of ["scan","labels","list","kpi"])$("view-"+v).hidden=v!==t;if(t!=="scan")stopCam();if(t==="list")refreshList();if(t==="labels"){fillLabelLists();if(!items.length)api("apiList").then(l=>{items=l;fillLabelLists()}).catch(()=>{})}if(t==="kpi"){fillKpiCust();if(!kpiData)runKpi()}}
 document.querySelector("nav").addEventListener("click",e=>{const b=e.target.closest("button");if(b)showTab(b.dataset.tab)});
 
@@ -701,7 +706,7 @@ function renderList(){const c=[0,0,0,0,0];for(const it of items)c[si(it.status)]
     `<button data-s="-5" aria-pressed="${filterStatus===-5}" style="color:var(--s2)"><small>ตัดรอบ ${CUTOFF_HOUR}:00 ยังไม่ขึ้นรถ</small><strong>${items.filter(isCutoff).length}</strong></button>`;
   showStuck();showDue();
   const rows=filtered();if(filterStatus===-3)rows.sort((a,b)=>daysUntil(a.planDate)-daysUntil(b.planDate));
-  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td>${si(it.status)<2?`<input type="checkbox" class="t-chk" value="${esc(it.code)}" style="width:auto"${selCodes.has(it.code)?" checked":""}>`:""}</td><td class="code">${esc(it.code)}${isMissed(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ตกเที่ยว ${esc(it.planTrip)}</span>`:""}</td><td>${pill(it.status)}</td><td>${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td>${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}${isStuck(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ค้าง ${daysSince(it.receivedDate||it.createdAt)} วัน</span>`:""}</td><td>${esc(it.trip)}${!it.trip&&it.planTrip?`<span style="color:var(--muted)">แผน ${esc(it.planTrip)}</span>`:""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}${duePill(it)}</td><td>${fmtD(it.deliveredDate)}</td><td><button type="button" class="btn t-edit" style="padding:4px 10px">แก้ไข</button></td></tr>`).join("");
+  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td>${si(it.status)<2?`<input type="checkbox" class="t-chk" value="${esc(it.code)}" style="width:auto"${selCodes.has(it.code)?" checked":""}>`:""}</td><td class="code">${esc(it.code)}${isMissed(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ตกเที่ยว ${esc(it.planTrip)}</span>`:""}</td><td>${pill(it.status)}</td><td class="ell" title="${esc(it.customer)}">${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td class="ell" title="${esc(it.store)}">${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}${isStuck(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ค้าง ${daysSince(it.receivedDate||it.createdAt)} วัน</span>`:""}</td><td>${esc(it.trip)}${!it.trip&&it.planTrip?`<span style="color:var(--muted)">แผน ${esc(it.planTrip)}</span>`:""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}${duePill(it)}</td><td>${fmtD(it.deliveredDate)}</td><td><button type="button" class="btn t-edit" style="padding:4px 10px">แก้ไข</button></td></tr>`).join("");
   $("list-empty").hidden=rows.length>0;$("list-empty").textContent=items.length?"ไม่พบรายการตามเงื่อนไข":"ยังไม่มีสินค้า เริ่มจากแท็บ สร้างป้าย QR"}
 $("counts").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;filterStatus=+b.dataset.s;renderList()});
 /* ---------- stuck in warehouse alert ---------- */
