@@ -253,7 +253,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
   <!-- LIST -->
   <section id="view-list" class="stack" hidden>
     <div class="card-head">
-      <div><h2>รายการสินค้าทั้งหมด</h2><p class="sub" style="margin:0">กดแถวเพื่อเปิดรายการ · ข้อมูลเต็มอยู่ใน Google Sheet</p></div>
+      <div><h2>รายการสินค้าทั้งหมด</h2><p class="sub" style="margin:0">กดแถวเพื่อเปิดรายการ · คีย์ข้อมูลผิด กด "แก้ไข" ท้ายแถว · ข้อมูลเต็มอยู่ใน Google Sheet</p></div>
       <button class="btn" id="refresh-btn" type="button">รีเฟรช</button>
     </div>
     <div class="counts" id="counts"></div>
@@ -272,7 +272,7 @@ tbody tr{cursor:pointer}tbody tr:hover{background:var(--surface-2)}
     </div>
     <div class="tablebox">
       <table>
-        <thead><tr><th><input type="checkbox" id="t-all" style="width:auto" aria-label="เลือกทั้งหมดที่ยังไม่ขึ้นรถ"></th><th>รหัส</th><th>สถานะ</th><th>ลูกค้า</th><th>เลขบิล</th><th>ร้านค้า</th><th>จำนวน</th><th>รับเข้า</th><th>เที่ยว</th><th>ออกรถ</th><th>ถึง</th><th>นัดส่ง</th><th>ส่งสำเร็จ</th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="t-all" style="width:auto" aria-label="เลือกทั้งหมดที่ยังไม่ขึ้นรถ"></th><th>รหัส</th><th>สถานะ</th><th>ลูกค้า</th><th>เลขบิล</th><th>ร้านค้า</th><th>จำนวน</th><th>รับเข้า</th><th>เที่ยว</th><th>ออกรถ</th><th>ถึง</th><th>นัดส่ง</th><th>ส่งสำเร็จ</th><th></th></tr></thead>
         <tbody id="tbody"></tbody>
       </table>
       <div id="list-empty" class="empty">กำลังโหลด...</div>
@@ -433,12 +433,12 @@ $("scan-form").addEventListener("submit",async e=>{e.preventDefault();const c=pa
 function showResult(ok,html){const el=$("last-result");el.className="lastres "+(ok?"ok":"err");el.innerHTML=html;el.hidden=false}
 
 /* ---------- view one item ---------- */
-async function lookup(code){
+async function lookup(code,edit){
   if(!CODE_RE.test(code)){beep(false);showResult(false,`<span>"${esc(code)}" ไม่ใช่ป้าย SCL</span>`);return}
   note($("scan-msg"),`อ่านได้ ${code} กำลังดึงข้อมูล...`);
   try{const r=await api("apiGet",code);$("scan-msg").hidden=true;beep(true);renderItem(code,r.item,r.log);
     showResult(!!r.item,r.item?`<span class="code">${esc(code)}</span>${pill(r.item.status)}<span>${esc(r.item.store)} · บิล ${esc(r.item.billNo||"-")}</span>`:`<span class="code">${esc(code)}</span><span>ป้ายเปล่า ยังไม่มีข้อมูล กรอกด้านล่างเพื่อรับเข้า</span>`);
-    $("item-view").scrollIntoView({behavior:"smooth",block:"start"})}
+    $("item-view").scrollIntoView({behavior:"smooth",block:"start"});if(edit&&r.item)openEdit()}
   catch(err){beep(false);note($("scan-msg"),"ดึงข้อมูลไม่สำเร็จ: "+err.message,"err")}}
 
 function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
@@ -448,14 +448,14 @@ function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
   const dates=[it.createdAt,it.receivedDate,it.shipDate,it.arrivedDate,it.deliveredDate];
   const track=ST.map((s,k)=>`<div class="step ${k<i?"done":k===i?"now done":""}"><b>${s}</b>${k<=i?"&#10003; "+fmtD(dates[k]):"ยังไม่อัปเดต"}</div>`).join("");
   box.innerHTML=`<div class="panel">
-    <div class="card-head"><span class="code">${esc(code)}</span>${pill(it.status)}</div>
+    <div class="card-head"><span class="code">${esc(code)}</span><div class="row" style="align-items:center">${pill(it.status)}<button type="button" class="btn" id="edit-open">แก้ไขข้อมูล</button></div></div>
     <dl class="kv">
       <div><dt>ลูกค้า (เจ้าของสินค้า)</dt><dd>${esc(it.customer||"-")}</dd></div>
       <div><dt>เลขที่บิล</dt><dd>${esc(it.billNo||"-")}</dd></div>
       <div><dt>ร้านค้าปลายทาง</dt><dd>${esc(it.store||"-")}</dd></div>
       <div><dt>สาขา / จุดกระจาย</dt><dd>${esc(it.branch||"-")}</dd></div>
       <div><dt>จำนวน</dt><dd>${esc(it.qty||"-")} ${esc(it.unit)}</dd></div>
-      <div><dt>สินค้า</dt><dd>${esc(it.desc||"-")}</dd></div>
+      <div><dt>ประเภทสินค้า</dt><dd>${esc(it.desc||"-")}</dd></div>
       <div><dt>เลขเที่ยว</dt><dd>${esc(it.trip||"-")}</dd></div>${it.planTrip?`<div><dt>เที่ยวที่วางแผน</dt><dd>${esc(it.planTrip)}${isMissed(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ตกเที่ยว</span>`:""}</dd></div>`:""}
       <div><dt>วันนัดส่ง</dt><dd>${fmtD(it.planDate)}${duePill(it)}</dd></div>
       ${it.receiver?`<div><dt>ผู้รับสินค้า</dt><dd>${esc(it.receiver)}</dd></div>`:""}
@@ -463,13 +463,14 @@ function renderItem(code,it,log){const box=$("item-view");box.hidden=false;
     </dl>
     <div class="track">${track}</div>
     ${i<4?nextForm(i+1,it):`<div class="notice ok" style="margin-top:16px">ส่งสินค้าสำเร็จแล้ว ${fmtD(it.deliveredDate)}</div>`}
-    <details><summary>แก้ไขข้อมูล / เปลี่ยนสถานะ</summary>${editForm(it,false)}</details>
+    <details id="edit-det"><summary>แก้ไขข้อมูลบิล (กรณีคีย์ผิด) / เปลี่ยนสถานะ</summary>${editForm(it,false)}</details>
     <details><summary>ประวัติ (${log.length})</summary><ul class="hist">${log.map(x=>`<li><b>${esc(x.action)}</b> ${esc(x.detail)} · ${esc(x.at)} · ${esc(x.by)}</li>`).join("")||"<li>ยังไม่มีประวัติ</li>"}</ul></details>
     <div class="item-photo"><div class="item-photo-img">${it.photo?"<span class=\"sub\">กำลังโหลดรูป...</span>":""}</div>
       <div class="row"><button type="button" class="btn item-photo-btn">${it.photo?"ถ่ายรูปใหม่แทน":"ถ่ายรูปแนบกับป้ายนี้"}</button><input type="file" class="hidden-file item-photo-input" accept="image/*" capture="environment" tabindex="-1"></div></div>
     <div style="margin-top:14px"><a class="btn" target="_blank" rel="noopener" href="${esc(API_URL+"?codes="+code)}">พิมพ์ป้ายใบนี้ซ้ำ</a></div>
   </div>`;
-  if(i<4)bindNext(code,i+1);bindEdit(code,false,it);bindPhoto(code,it)}
+  if(i<4)bindNext(code,i+1);bindEdit(code,false,it);bindPhoto(code,it);$("edit-open").onclick=openEdit}
+function openEdit(){const d=$("edit-det");if(!d)return;d.open=true;setTimeout(()=>{d.scrollIntoView({behavior:"smooth",block:"start"});$("e-customer").focus({preventScroll:true})},50)}
 
 /* ---------- photos ---------- */
 async function shrink(file,max,q){const url=URL.createObjectURL(file);
@@ -499,11 +500,15 @@ function bindNext(code,k){$("next-form").addEventListener("submit",async e=>{e.p
   try{await api("apiSave",code,stepPatch(k,{date:g("n-date")||today(),qty:g("n-qty"),trip:g("n-trip"),ttype:g("n-ttype"),driver:g("n-driver"),recv:g("n-recv")}),ST[k],NAME,true);
     toast(`${code} → ${ST[k]}`);await lookup(code)}catch(err){btn.disabled=false;toast(err.message)}})}
 
-function editForm(it,isNew){return `<form id="edit-form" class="stack" style="margin-top:12px"><div class="grid">
-    <label class="f">ลูกค้า (เจ้าของสินค้า)<input id="e-customer" value="${esc(it.customer)}"></label>
-    <label class="f">เลขที่บิล<input id="e-bill" value="${esc(it.billNo)}" ${isNew?"required":""}></label>
-    <label class="f">ร้านค้าปลายทาง<input id="e-store" value="${esc(it.store)}" ${isNew?"required":""}></label>
-    <label class="f">สาขา / จุดกระจาย<input id="e-branch" value="${esc(it.branch)}"></label>
+const BRANCHES=["แม่สอด","นครสวรรค์","พิษณุโลก","แพร่","น่าน","พะเยา","ลำปาง","เชียงใหม่","เชียงราย"];
+function branchSelect(id,cur){const list=cur&&!BRANCHES.includes(cur)?[cur,...BRANCHES]:BRANCHES;
+  return `<select id="${id}"><option value="">เลือกสาขา</option>${list.map(b=>`<option ${b===cur?"selected":""}>${esc(b)}</option>`).join("")}</select>`}
+function editForm(it,isNew){if(typeof fillLabelLists==="function")fillLabelLists();
+  return `<form id="edit-form" class="stack" style="margin-top:12px"><div class="grid">
+    <label class="f">ลูกค้า (เจ้าของสินค้า)<input id="e-customer" list="dl-customer" value="${esc(it.customer||(isNew?$("l-customer").defaultValue:""))}"></label>
+    <label class="f">เลขที่บิล<input id="e-bill" value="${esc(it.billNo)}" placeholder="เช่น RI22671248 หรือใส่แค่ตัวเลข" ${isNew?"required":""}></label>
+    <label class="f">ร้านค้าปลายทาง<input id="e-store" list="dl-store" value="${esc(it.store)}" ${isNew?"required":""}></label>
+    <label class="f">สาขา / จุดกระจาย${branchSelect("e-branch",it.branch)}</label>
     <label class="f">จำนวน<input id="e-qty" type="number" step="any" value="${esc(it.qty)}"></label>
     <label class="f">หน่วย<input id="e-unit" value="${esc(it.unit||"กล่อง")}"></label>
     <label class="f">วันนัดส่ง<input id="e-plan" type="date" value="${esc(it.planDate)}"></label>
@@ -520,11 +525,16 @@ function editForm(it,isNew){return `<form id="edit-form" class="stack" style="ma
   </div><div class="row"><button class="btn primary" type="submit">${isNew?"บันทึกรับเข้าคลัง":"บันทึกการแก้ไข"}</button></div></form>`}
 function bindEdit(code,isNew,it){$("edit-form").addEventListener("submit",async e=>{e.preventDefault();const g=id=>($(id)?$(id).value:"").trim();
   const p={customer:g("e-customer"),billNo:g("e-bill"),store:g("e-store"),branch:g("e-branch"),qty:g("e-qty"),unit:g("e-unit"),planDate:g("e-plan"),desc:g("e-desc"),note:g("e-note"),receivedDate:g("e-recvdate")};
+  if(/^\d+$/.test(p.billNo))p.billNo="RI"+p.billNo; // ใส่แค่ตัวเลข = บิล RI
   let action="แก้ไขข้อมูล";
+  if(!isNew&&it){const chg=["customer","billNo","store","branch","qty","unit","planDate","desc"].filter(k=>String(it[k]||"")!==String(p[k]||""));
+    if(chg.length)action="แก้ไขข้อมูล ("+chg.map(k=>({customer:"ลูกค้า",billNo:"เลขบิล",store:"ร้านค้า",branch:"สาขา",qty:"จำนวน",unit:"หน่วย",planDate:"วันนัดส่ง",desc:"ประเภทสินค้า"})[k]).join(", ")+")"}
   if(isNew){p.status=ST[1];action=ST[1];if(!p.receivedDate)p.receivedDate=today()}
   else{Object.assign(p,{status:g("e-status"),trip:g("e-trip").toUpperCase(),shipDate:g("e-ship"),arrivedDate:g("e-arr"),deliveredDate:g("e-del"),receiver:g("e-recv")})}
   const btn=e.target.querySelector("button[type=submit]");btn.disabled=true;
-  try{await api("apiSave",code,p,action,NAME,false);toast("บันทึกแล้ว");await lookup(code)}catch(err){btn.disabled=false;toast(err.message)}})}
+  try{const r=await api("apiSave",code,p,action,NAME,false);
+    const k=items.findIndex(x=>x.code===code);if(r&&r.item){if(k>=0)items[k]=r.item;else items.push(r.item)}
+    toast(isNew?"บันทึกแล้ว":"บันทึกการแก้ไขแล้ว ถ้าข้อมูลบนป้ายเปลี่ยน กดพิมพ์ป้ายใบนี้ซ้ำ");await lookup(code)}catch(err){btn.disabled=false;toast(err.message)}})}
 
 /* ---------- batch (continuous) ---------- */
 let batchN=0;
@@ -569,13 +579,21 @@ function renderQueue(){const box=$("l-queue-box");box.hidden=!labelQueue.length;
   $("l-make-all").textContent=`สร้างป้ายทุกบิลในรายการ (${total} ป้าย)`;
   $("l-queue").innerHTML=labelQueue.map((q,i)=>{const b=q.base;
     const t=b.billNo?`บิล <b>${esc(b.billNo)}</b> · ${esc(b.store)}${b.branch?" · "+esc(b.branch):""}${b.customer?` <span style="color:var(--muted)">(${esc(b.customer)})</span>`:""}`:"ป้ายเปล่า";
-    return `<li><span class="q-t">${i+1}. ${t}${b.photo?' <span style="color:var(--muted)">· มีรูปบิล</span>':""}</span><span class="q-n">${q.n} ป้าย</span><button type="button" class="btn" data-i="${i}" aria-label="ลบบิลนี้ออกจากรายการ">ลบ</button></li>`}).join("")}
+    return `<li><span class="q-t">${i+1}. ${t}${b.photo?' <span style="color:var(--muted)">· มีรูปบิล</span>':""}</span><span class="q-n">${q.n} ป้าย</span><button type="button" class="btn" data-e="${i}" aria-label="แก้ไขบิลนี้">แก้ไข</button><button type="button" class="btn" data-i="${i}" aria-label="ลบบิลนี้ออกจากรายการ">ลบ</button></li>`}).join("")}
 $("l-add").addEventListener("click",()=>{if(!$("label-form").reportValidity())return;
   const base=labelBase();const dup=base.billNo&&labelQueue.some(q=>q.base.billNo===base.billNo);
   labelQueue.push({base,n:labelCount()});renderQueue();resetBillFields();
   note($("label-msg"),`เพิ่มบิล ${base.billNo||"ป้ายเปล่า"} ลงรายการแล้ว${dup?" (เลขบิลนี้ซ้ำกับในรายการ ตรวจอีกครั้ง)":""} กรอกบิลถัดไปได้เลย ลูกค้า วันนัดส่ง และหน่วยยังคงไว้`,dup?"err":"ok");
   if(labelKind==="full")$("l-bill").focus()});
-$("l-queue").addEventListener("click",e=>{const b=e.target.closest("button[data-i]");if(!b)return;labelQueue.splice(+b.dataset.i,1);renderQueue()});
+$("l-queue").addEventListener("click",e=>{const ed=e.target.closest("button[data-e]");
+  if(ed){// ดึงบิลกลับขึ้นฟอร์มเพื่อแก้ แล้วกดเพิ่มลงรายการใหม่
+    const q=labelQueue.splice(+ed.dataset.e,1)[0],b=q.base;if(labelKind!=="full")$("label-kind").children[0].click();
+    $("l-customer").value=b.customer||"";$("l-bill").value=riDigits(b.billNo);$("l-store").value=b.store||"";$("l-branch").value=b.branch||"";
+    $("l-plan").value=b.planDate||"";$("l-desc").value=b.desc||"";$("l-qty").value=b.qty||"1";$("l-unit").value=b.unit||"กล่อง";$("l-count").value=q.n;
+    $("l-recv").value=b.status===ST[1]?"1":"0";billPhoto=b.photo||null;renderQueue();
+    note($("label-msg"),`ดึงบิล ${b.billNo||""} กลับมาแก้ในฟอร์มแล้ว แก้เสร็จกด "+ เพิ่มบิลนี้ลงรายการ" อีกครั้ง`,"ok");
+    $("label-form").scrollIntoView({behavior:"smooth",block:"start"});return}
+  const b=e.target.closest("button[data-i]");if(!b)return;labelQueue.splice(+b.dataset.i,1);renderQueue()});
 $("l-clear-q").addEventListener("click",()=>{if(confirm("ล้างบิลทั้งหมดในรายการ?")){labelQueue=[];renderQueue()}});
 $("l-make-all").addEventListener("click",async()=>{if(!labelQueue.length)return;const msg=$("label-msg"),btn=$("l-make-all");btn.disabled=true;$("l-submit").disabled=true;
   const made=[],total=labelQueue.length;let done=0;
@@ -660,7 +678,8 @@ $("l-xls-tpl").addEventListener("click",async e=>{e.preventDefault();
     XLSX.writeFile(wb,"SCL_นำเข้าบิล_ตัวอย่าง.xlsx")}catch(err){toast(err.message)}});
 function labelText(l){return (l.customer?`<div>ลูกค้า <b>${esc(l.customer)}</b></div>`:"")+(l.billNo?`<div>บิล <b>${esc(l.billNo)}</b> · ${esc(l.seq)}</div><div><b>${esc(l.store)}</b></div><div>${esc(l.branch)}</div><div>${esc(l.qty)} ${esc(l.unit)} ${esc(l.desc)}</div>`:`<div>ป้ายเปล่า ${esc(l.seq)}</div>`)}
 function renderLabels(){$("label-out").hidden=false;$("label-out-title").textContent=`ป้ายที่สร้าง (${lastLabels.length})`;
-  $("label-preview").innerHTML=lastLabels.map(l=>`<div class="lbl">${qrSvg(qrPayload(l.code))}<div class="t"><div class="code">${esc(l.code)}</div>${labelText(l)}</div></div>`).join("");updatePrint()}
+  $("label-preview").innerHTML=lastLabels.map(l=>`<div class="lbl">${qrSvg(qrPayload(l.code))}<div class="t"><div class="code">${esc(l.code)}</div>${labelText(l)}<button type="button" class="btn l-edit" data-code="${esc(l.code)}" style="padding:2px 10px;margin-top:4px">แก้ไข</button></div></div>`).join("");updatePrint()}
+$("label-preview").addEventListener("click",e=>{const b=e.target.closest(".l-edit");if(!b)return;showTab("scan");setMode("view");lookup(b.dataset.code,true)});
 function updatePrint(){const paper="&paper="+$("l-paper").value;
   if(lastCodes)$("l-print").href=API_URL+"?codes="+encodeURIComponent(lastCodes.join(","))+paper;
   else if(lastBatch)$("l-print").href=API_URL+"?print="+encodeURIComponent(lastBatch)+paper}
@@ -682,7 +701,7 @@ function renderList(){const c=[0,0,0,0,0];for(const it of items)c[si(it.status)]
     `<button data-s="-5" aria-pressed="${filterStatus===-5}" style="color:var(--s2)"><small>ตัดรอบ ${CUTOFF_HOUR}:00 ยังไม่ขึ้นรถ</small><strong>${items.filter(isCutoff).length}</strong></button>`;
   showStuck();showDue();
   const rows=filtered();if(filterStatus===-3)rows.sort((a,b)=>daysUntil(a.planDate)-daysUntil(b.planDate));
-  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td>${si(it.status)<2?`<input type="checkbox" class="t-chk" value="${esc(it.code)}" style="width:auto"${selCodes.has(it.code)?" checked":""}>`:""}</td><td class="code">${esc(it.code)}${isMissed(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ตกเที่ยว ${esc(it.planTrip)}</span>`:""}</td><td>${pill(it.status)}</td><td>${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td>${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}${isStuck(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ค้าง ${daysSince(it.receivedDate||it.createdAt)} วัน</span>`:""}</td><td>${esc(it.trip)}${!it.trip&&it.planTrip?`<span style="color:var(--muted)">แผน ${esc(it.planTrip)}</span>`:""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}${duePill(it)}</td><td>${fmtD(it.deliveredDate)}</td></tr>`).join("");
+  $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td>${si(it.status)<2?`<input type="checkbox" class="t-chk" value="${esc(it.code)}" style="width:auto"${selCodes.has(it.code)?" checked":""}>`:""}</td><td class="code">${esc(it.code)}${isMissed(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ตกเที่ยว ${esc(it.planTrip)}</span>`:""}</td><td>${pill(it.status)}</td><td>${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td>${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}${isStuck(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ค้าง ${daysSince(it.receivedDate||it.createdAt)} วัน</span>`:""}</td><td>${esc(it.trip)}${!it.trip&&it.planTrip?`<span style="color:var(--muted)">แผน ${esc(it.planTrip)}</span>`:""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}${duePill(it)}</td><td>${fmtD(it.deliveredDate)}</td><td><button type="button" class="btn t-edit" style="padding:4px 10px">แก้ไข</button></td></tr>`).join("");
   $("list-empty").hidden=rows.length>0;$("list-empty").textContent=items.length?"ไม่พบรายการตามเงื่อนไข":"ยังไม่มีสินค้า เริ่มจากแท็บ สร้างป้าย QR"}
 $("counts").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;filterStatus=+b.dataset.s;renderList()});
 /* ---------- stuck in warehouse alert ---------- */
@@ -845,7 +864,7 @@ $("kpi-mail").addEventListener("click",async()=>{if(!kpiData)return;const k=kpiD
     store("scl_kpi_mail",to);note($("kpi-msg"),`ส่งอีเมลรายงานแล้ว (${r.sent} ผู้รับ)`,"ok")}
   catch(err){note($("kpi-msg"),"ส่งอีเมลไม่สำเร็จ: "+err.message,"err")}finally{btn.disabled=false}});
 $("q").addEventListener("input",renderList);$("q-date").addEventListener("input",renderList);
-$("tbody").addEventListener("click",e=>{if(e.target.closest("input"))return;const tr=e.target.closest("tr");if(!tr)return;showTab("scan");setMode("view");lookup(tr.dataset.code)});
+$("tbody").addEventListener("click",e=>{if(e.target.closest("input"))return;const tr=e.target.closest("tr");if(!tr)return;showTab("scan");setMode("view");lookup(tr.dataset.code,!!e.target.closest(".t-edit"))});
 </script>
 <div id="pops" aria-live="polite"></div>
 </body>
