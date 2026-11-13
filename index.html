@@ -750,10 +750,10 @@ async function refreshList(){$("list-empty").hidden=false;$("list-empty").textCo
   catch(err){$("list-empty").textContent="โหลดไม่สำเร็จ: "+err.message}}
 $("refresh-btn").addEventListener("click",refreshList);
 function filtered(){const q=$("q").value.trim().toLowerCase(),qd=$("q-date").value;
-  return items.filter(it=>(filterStatus===-5?isCutoff(it):filterStatus===-4?isMissed(it):filterStatus===-3?isDueSoon(it):filterStatus===-2?isStuck(it):(filterStatus<0||si(it.status)===filterStatus))&&(!qd||it.shipDate===qd)&&(!q||[it.code,it.customer,it.billNo,it.store,it.trip,it.planTrip,it.branch,it.desc].some(v=>String(v||"").toLowerCase().includes(q))))}
+  return items.filter(it=>(filterStatus===-5?isCutoff(it):filterStatus===-4?isMissed(it):filterStatus===-3?isDueSoon(it):filterStatus===-2?isStuck(it):filterStatus===-1?(si(it.status)<4||!!q||!!qd):si(it.status)===filterStatus)&&(!qd||it.shipDate===qd)&&(!q||[it.code,it.customer,it.billNo,it.store,it.trip,it.planTrip,it.branch,it.desc].some(v=>String(v||"").toLowerCase().includes(q))))}
 function renderList(){const c=[0,0,0,0,0];for(const it of items)c[si(it.status)]++;
   const nStuck=items.filter(isStuck).length;
-  $("counts").innerHTML=`<button data-s="-1" aria-pressed="${filterStatus===-1}"><small>ทั้งหมด</small><strong>${items.length}</strong></button>`+ST.map((s,k)=>`<button data-s="${k}" aria-pressed="${filterStatus===k}"><small>${s}</small><strong>${c[k]}</strong></button>`).join("")+
+  $("counts").innerHTML=`<button data-s="-1" aria-pressed="${filterStatus===-1}"><small>ทั้งหมด (ยังไม่ส่งสำเร็จ)</small><strong>${items.length-c[4]}</strong></button>`+ST.map((s,k)=>`<button data-s="${k}" aria-pressed="${filterStatus===k}"><small>${s}</small><strong>${c[k]}</strong></button>`).join("")+
     `<button class="staff" data-s="-2" aria-pressed="${filterStatus===-2}" style="color:var(--danger)"><small>ค้างโกดังเกิน ${STUCK_DAYS} วัน</small><strong>${nStuck}</strong></button>`+
     `<button class="staff" data-s="-3" aria-pressed="${filterStatus===-3}" style="color:var(--s2)"><small>ใกล้วันนัดส่ง</small><strong>${items.filter(isDueSoon).length}</strong></button>`+
     `<button class="staff" data-s="-4" aria-pressed="${filterStatus===-4}" style="color:var(--danger)"><small>ตกเที่ยวรถ</small><strong>${items.filter(isMissed).length}</strong></button>`+
