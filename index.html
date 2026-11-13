@@ -91,6 +91,8 @@ th{font-size:12px;color:var(--muted);font-weight:600;background:var(--surface-2)
 /* รายการทั้งหมด: ใช้ความกว้างเต็มจอ และย่อคอลัมน์ให้ตารางพอดีหน้า */
 body.wide .wrap{max-width:none}
 body.cust .staff{display:none!important}.cust-tag{font-weight:600;color:var(--s4)}
+/* รายการทั้งหมด: ตารางเลื่อนในกรอบของตัวเอง ส่วนบน (แจ้งเตือน/ตัวนับ/ค้นหา) อยู่กับที่ หัวตารางติดด้านบน */
+@media (min-width:768px){#view-list .tablebox{overflow:auto}#view-list thead th{position:sticky;top:0;z-index:2;box-shadow:inset 0 -1px 0 var(--line)}}
 #view-list th,#view-list td{padding:7px 5px}#view-list td{font-size:13px}#view-list td .pill{font-size:11.5px;padding:2px 7px}
 #view-list td.code{font-size:12.5px;letter-spacing:0}#view-list td .t-edit{padding:3px 8px!important;font-size:12.5px}
 #view-list td.ell{max-width:130px;overflow:hidden;text-overflow:ellipsis}#view-list td.ell+td+td.ell{max-width:170px}
@@ -759,7 +761,12 @@ function renderList(){const c=[0,0,0,0,0];for(const it of items)c[si(it.status)]
   showStuck();showDue();
   const rows=filtered();if(filterStatus===-3)rows.sort((a,b)=>daysUntil(a.planDate)-daysUntil(b.planDate));
   $("tbody").innerHTML=rows.slice(0,500).map(it=>`<tr data-code="${esc(it.code)}"><td class="staff">${si(it.status)<2?`<input type="checkbox" class="t-chk" value="${esc(it.code)}" style="width:auto"${selCodes.has(it.code)?" checked":""}>`:""}</td><td class="code">${esc(it.code)}${isMissed(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ตกเที่ยว ${esc(it.planTrip)}</span>`:""}</td><td>${pill(it.status)}</td><td class="ell" title="${esc(it.customer)}">${esc(it.customer)}</td><td>${esc(it.billNo)}</td><td class="ell" title="${esc(it.store)}">${esc(it.store)}</td><td>${esc(it.qty)} ${esc(it.unit)}</td><td>${fmtD(it.receivedDate)}${isStuck(it)?` <span class="pill" style="color:var(--danger);background:var(--tdanger)">ค้าง ${daysSince(it.receivedDate||it.createdAt)} วัน</span>`:""}</td><td>${esc(it.trip)}${!it.trip&&it.planTrip?`<span style="color:var(--muted)">แผน ${esc(it.planTrip)}</span>`:""}</td><td>${fmtD(it.shipDate)}</td><td>${fmtD(it.arrivedDate)}</td><td>${fmtD(it.planDate)}${duePill(it)}</td><td>${fmtD(it.deliveredDate)}</td><td class="staff"><button type="button" class="btn t-edit" style="padding:4px 10px">แก้ไข</button></td></tr>`).join("");
-  $("list-empty").hidden=rows.length>0;$("list-empty").textContent=items.length?"ไม่พบรายการตามเงื่อนไข":"ยังไม่มีสินค้า เริ่มจากแท็บ สร้างป้าย QR"}
+  $("list-empty").hidden=rows.length>0;$("list-empty").textContent=items.length?"ไม่พบรายการตามเงื่อนไข":"ยังไม่มีสินค้า เริ่มจากแท็บ สร้างป้าย QR";fitList()}
+// ให้กรอบตารางสูงพอดีจอ (นับจากตำแหน่งตารางเมื่อหน้าอยู่บนสุด) จะได้เลื่อนเฉพาะตาราง
+function fitList(){const v=$("view-list"),tb=v&&v.querySelector(".tablebox");if(!tb||v.hidden)return;
+  if(innerWidth<768){tb.style.maxHeight="";return}
+  const top=tb.getBoundingClientRect().top+scrollY;tb.style.maxHeight=Math.max(320,innerHeight-top-16)+"px"}
+addEventListener("resize",fitList);
 $("counts").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;filterStatus=+b.dataset.s;renderList()});
 /* ---------- stuck in warehouse alert ---------- */
 const STUCK_DAYS=1;
